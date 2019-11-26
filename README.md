@@ -1,6 +1,6 @@
 @annstart
 # TRON 
-#### (v0.0.0-development start update)
+#### (v0.0.1-the simplest program update)
 A simple Python 3D graphics library based on OpenGL. Created to allow easier development of small Python 3D programs. 
 
 Source code available at: https://github.com/leviathan117/TRON
@@ -9,7 +9,7 @@ Source code for a legacy OpenGL-based version (current v0.1.0): https://github.c
 
 @annend
 ## What's new (from previous version):
-We are working on this
+* We started our way to the stars
 
 ## Version warning
 Until version 1.0.0 - code structure, names and function implementations may change chaotically. Documentation may not be present.
