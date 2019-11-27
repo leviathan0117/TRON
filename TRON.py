@@ -10,6 +10,7 @@ from PIL import Image
 
 path_to_res_folder = ""
 
+
 class Camera:
     def __init__(self):
         self.camera_pos = pyrr.Vector3([0.0, 0.0, 0.0])
@@ -91,10 +92,11 @@ class Camera:
 
         return rotation * translation
 
+
 aspect_ratio = 1
 
 camera_projection_matrix = None
-view_matrix = None
+camera_view_matrix = None
 
 
 def window_resize(window, width, height):
@@ -154,7 +156,7 @@ def mouse_callback(window, xpos, ypos):
     lastX = xpos
     lastY = ypos
 
-    cam.process_mouse_movement(offset_x, offset_y, False)
+    cam.process_mouse_movement(offset_x, offset_y)
 
 
 class Shader:
@@ -188,7 +190,8 @@ class Shader:
     def unbind(self):
         glUseProgram(0)
 
-class Texture():
+
+class Texture:
     def __init__(self):
         self.id = None
 
@@ -274,12 +277,12 @@ class TexturedCubes:
         glUseProgram(0)
 
     def draw(self, rotation_array, instance_array, resize_array):
-        global aspect_ratio, camera_projection_matrix, view_matrix
+        global aspect_ratio, camera_projection_matrix, camera_view_matrix
 
         self.texture.bind()
 
         self.shader.bind()
-        glUniformMatrix4fv(self.view_uniform_location, 1, GL_FALSE, view_matrix)
+        glUniformMatrix4fv(self.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
         glUniformMatrix4fv(self.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
 
         glBindVertexArray(self.vao)
@@ -336,6 +339,133 @@ class TexturedCubes:
                           20, 21, 22, 22, 23, 20]
 
         self.triangles = numpy.array(self.triangles, dtype=numpy.uint32)
+
+
+class Object:
+    def __init__(self, texture_location, object_location):
+        self.points = numpy.zeros(0)
+        self.load_data(object_location)
+
+        self.shader = Shader()
+        self.shader.compile_shader("res/shaders/textured_object.vs", "res/shaders/textured_object.fs")
+
+        self.texture = Texture()
+        self.texture.load(texture_location)
+
+        self.vao = glGenVertexArrays(1)
+        self.points_vbo = glGenBuffers(1)
+        self.instance_vbo = glGenBuffers(1)
+        self.rotation_vbo = glGenBuffers(1)
+        self.resize_vbo = glGenBuffers(1)
+
+        glBindVertexArray(self.vao)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.points_vbo)
+        glBufferData(GL_ARRAY_BUFFER, self.points.itemsize * len(self.points), self.points, GL_STATIC_DRAW)
+        # position - 0
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.points.itemsize * 5, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+        # textures - 1
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.points.itemsize * 5, ctypes.c_void_p(12))
+        glEnableVertexAttribArray(1)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
+        # instance - 2
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(2)
+        glVertexAttribDivisor(2, 1)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
+        # rotation - 3
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(3)
+        glVertexAttribDivisor(3, 1)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbo)
+        # resize - 4
+        glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(4)
+        glVertexAttribDivisor(4, 1)
+
+        self.view_uniform_location = glGetUniformLocation(self.shader.get_shader(), "view")
+        self.projection_uniform_location = glGetUniformLocation(self.shader.get_shader(), "projection")
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
+        glUseProgram(0)
+
+    def draw(self, rotation_array, instance_array, resize_array):
+        global aspect_ratio, camera_projection_matrix, camera_view_matrix
+
+        self.texture.bind()
+
+        self.shader.bind()
+        glUniformMatrix4fv(self.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(self.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
+
+        glBindVertexArray(self.vao)
+        glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
+        glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array), rotation_array, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
+        glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array), instance_array, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbo)
+        glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array), resize_array, GL_DYNAMIC_DRAW)
+
+        count_objects = int(len(rotation_array) / 3)
+        glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.points), count_objects)
+
+    def load_data(self, object_location):
+        vertex_cords = []
+        texture_cords = []
+        normal_cords = []
+
+        vertex_index = []
+        texture_index = []
+        normal_index = []
+
+        object_location = path_to_res_folder + object_location
+
+        for line in open(object_location, 'r'):
+            if line.startswith('#'):
+                continue
+            values = line.split()
+            if not values:
+                continue
+
+            if values[0] == 'v':
+                vertex_cords.append(values[1:4])
+            if values[0] == 'vt':
+                texture_cords.append(values[1:3])
+            if values[0] == 'vn':
+                normal_cords.append(values[1:4])
+
+            if values[0] == 'f':
+                face_i = []
+                text_i = []
+                norm_i = []
+                for v in values[1:4]:
+                    w = v.split('/')
+                    face_i.append(int(w[0]) - 1)
+                    text_i.append(int(w[1]) - 1)
+                    norm_i.append(int(w[2]) - 1)
+                vertex_index.append(face_i)
+                texture_index.append(text_i)
+                normal_index.append(norm_i)
+
+        vertex_index = [y for x in vertex_index for y in x]
+        texture_index = [y for x in texture_index for y in x]
+        normal_index = [y for x in normal_index for y in x]
+
+        self.points = []
+
+        for i in range(len(vertex_index)):
+            add_array = []
+            add_array.extend(vertex_cords[vertex_index[i]])
+            add_array.extend(texture_cords[texture_index[i]])
+            self.points.append(add_array)
+
+        self.points = numpy.array(self.points, dtype=numpy.float32).flatten()
 
 
 class FPS:
@@ -399,21 +529,21 @@ class Program:
         cam.process_mouse_movement(0, 0)
 
     def window_loop(self, user_function):
-        global view_matrix
+        global camera_view_matrix
 
         fps = FPS(1)
         count = 0
         sum = 0
 
-
         glEnable(GL_DEPTH_TEST)
+
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
             do_movement()
             glClearColor(0.0, 0.0, 0.0, 1.0)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-            view_matrix = cam.get_view_matrix()
+            camera_view_matrix = cam.get_view_matrix()
 
             user_function()
 

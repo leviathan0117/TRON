@@ -14,9 +14,9 @@ angle = 0
 cube_array_size = 20
 
 instance_array = numpy.zeros((cube_array_size ** 3, 3))
-for z in range(0, cube_array_size, 1):
+for x in range(0, cube_array_size, 1):
     for y in range(0, cube_array_size, 1):
-        for x in range(0, cube_array_size, 1):
+        for z in range(0, cube_array_size, 1):
             instance_array[x * cube_array_size ** 2 + y * cube_array_size + z][0] = z * 2
             instance_array[x * cube_array_size ** 2 + y * cube_array_size + z][1] = y * 2
             instance_array[x * cube_array_size ** 2 + y * cube_array_size + z][2] = x * 2
