@@ -445,6 +445,7 @@ class Object:
                 text_i = []
                 norm_i = []
                 for v in values[1:4]:
+                    print(v)
                     w = v.split('/')
                     face_i.append(int(w[0]) - 1)
                     text_i.append(int(w[1]) - 1)
@@ -452,6 +453,25 @@ class Object:
                 vertex_index.append(face_i)
                 texture_index.append(text_i)
                 normal_index.append(norm_i)
+                if len(values) == 5:
+                    face_i = []
+                    text_i = []
+                    norm_i = []
+                    for v in values[3:5]:
+                        print(v)
+                        w = v.split('/')
+                        face_i.append(int(w[0]) - 1)
+                        text_i.append(int(w[1]) - 1)
+                        norm_i.append(int(w[2]) - 1)
+                    for v in values[1:2]:
+                        print(v)
+                        w = v.split('/')
+                        face_i.append(int(w[0]) - 1)
+                        text_i.append(int(w[1]) - 1)
+                        norm_i.append(int(w[2]) - 1)
+                    vertex_index.append(face_i)
+                    texture_index.append(text_i)
+                    normal_index.append(norm_i)
 
         vertex_index = [y for x in vertex_index for y in x]
         texture_index = [y for x in texture_index for y in x]
@@ -540,7 +560,7 @@ class Program:
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
             do_movement()
-            glClearColor(0.0, 0.0, 0.0, 1.0)
+            glClearColor(0.5, 0.5, 0.5, 1.0)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
             camera_view_matrix = cam.get_view_matrix()
