@@ -198,6 +198,7 @@ class Texture:
     def load(self, path_to_texture):
         path_to_texture = path_to_res_folder + path_to_texture
 
+
         self.id = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.id)
         # Set the texture wrapping parameters
@@ -346,6 +347,7 @@ class Object:
         self.points = numpy.zeros(0)
         self.load_data(object_location)
 
+
         self.shader = Shader()
         self.shader.compile_shader("res/shaders/textured_object.vs", "res/shaders/textured_object.fs")
 
@@ -413,7 +415,11 @@ class Object:
         glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array), resize_array, GL_DYNAMIC_DRAW)
 
         count_objects = int(len(rotation_array) / 3)
-        glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.points), count_objects)
+        if not keys[glfw.KEY_P]:
+            glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.points), count_objects)
+        else:
+            glLineWidth(2)
+            glDrawArraysInstanced(GL_LINES, 0, len(self.points), count_objects)
 
     def load_data(self, object_location):
         vertex_cords = []
@@ -426,7 +432,16 @@ class Object:
 
         object_location = path_to_res_folder + object_location
 
+        keep_alive_counter = 0
+
         for line in open(object_location, 'r'):
+            keep_alive_counter += 1
+            if keep_alive_counter == 10**5:
+                # THIS RESOLVES THE 'WINDOW STOPPED RESPONDING' PROBLEM
+                glfw.poll_events()
+                keep_alive_counter = 0
+                print("ok")
+
             if line.startswith('#'):
                 continue
             values = line.split()
@@ -445,11 +460,12 @@ class Object:
                 text_i = []
                 norm_i = []
                 for v in values[1:4]:
-                    print(v)
                     w = v.split('/')
-                    face_i.append(int(w[0]) - 1)
-                    text_i.append(int(w[1]) - 1)
-                    norm_i.append(int(w[2]) - 1)
+                    if len(w) >= 2:
+                        face_i.append(int(w[0]) - 1)
+                        text_i.append(int(w[1]) - 1)
+                    if len(w) == 3:
+                        norm_i.append(int(w[2]) - 1)
                 vertex_index.append(face_i)
                 texture_index.append(text_i)
                 normal_index.append(norm_i)
@@ -458,17 +474,17 @@ class Object:
                     text_i = []
                     norm_i = []
                     for v in values[3:5]:
-                        print(v)
                         w = v.split('/')
                         face_i.append(int(w[0]) - 1)
                         text_i.append(int(w[1]) - 1)
-                        norm_i.append(int(w[2]) - 1)
+                        if len(w) == 3:
+                            norm_i.append(int(w[2]) - 1)
                     for v in values[1:2]:
-                        print(v)
                         w = v.split('/')
                         face_i.append(int(w[0]) - 1)
                         text_i.append(int(w[1]) - 1)
-                        norm_i.append(int(w[2]) - 1)
+                        if len(w) == 3:
+                            norm_i.append(int(w[2]) - 1)
                     vertex_index.append(face_i)
                     texture_index.append(text_i)
                     normal_index.append(norm_i)
@@ -560,7 +576,7 @@ class Program:
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
             do_movement()
-            glClearColor(0.5, 0.5, 0.5, 1.0)
+            glClearColor(0.0, 0.0, 0.0, 1.0)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
             camera_view_matrix = cam.get_view_matrix()
