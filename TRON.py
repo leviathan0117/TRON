@@ -8,7 +8,11 @@ import time
 import math
 from PIL import Image
 
+
 path_to_res_folder = ""
+aspect_ratio = 1
+camera_projection_matrix = None
+camera_view_matrix = None
 
 
 class Camera:
@@ -39,18 +43,17 @@ class Camera:
         if direction == "DOWN":
             self.camera_pos -= self.camera_up * velocity
 
-    def process_mouse_movement(self, xoffset, yoffset, constrain_pitch=True):
-        xoffset *= self.mouse_sensitivity
-        yoffset *= self.mouse_sensitivity
+    def turn_camera(self, offset_x, offset_y):
+        offset_x *= self.mouse_sensitivity
+        offset_y *= self.mouse_sensitivity
 
-        self.yaw += xoffset
-        self.pitch += yoffset
+        self.yaw += offset_x
+        self.pitch += offset_y
 
-        if constrain_pitch:
-            if self.pitch > 89.9:
-                self.pitch = 89.9
-            if self.pitch < -89.9:
-                self.pitch = -89.9
+        if self.pitch > 89.9:
+            self.pitch = 89.9
+        if self.pitch < -89.9:
+            self.pitch = -89.9
 
         self.update_camera_vectors()
 
@@ -67,11 +70,11 @@ class Camera:
     def look_at(self, position, target, world_up):
         # 1.Position = known
         # 2.Calculate cameraDirection
-        zaxis = pyrr.vector.normalise(position - target)
+        axis_z = pyrr.vector.normalise(position - target)
         # 3.Get positive right axis vector
-        xaxis = pyrr.vector.normalise(pyrr.vector3.cross(pyrr.vector.normalise(world_up), zaxis))
+        axis_x = pyrr.vector.normalise(pyrr.vector3.cross(pyrr.vector.normalise(world_up), axis_z))
         # 4.Calculate the camera up vector
-        yaxis = pyrr.vector3.cross(zaxis, xaxis)
+        axis_y = pyrr.vector3.cross(axis_z, axis_x)
 
         # create translation and rotation matrix
         translation = pyrr.Matrix44.identity()
@@ -80,23 +83,17 @@ class Camera:
         translation[3][2] = -position.z
 
         rotation = pyrr.Matrix44.identity()
-        rotation[0][0] = xaxis[0]
-        rotation[1][0] = xaxis[1]
-        rotation[2][0] = xaxis[2]
-        rotation[0][1] = yaxis[0]
-        rotation[1][1] = yaxis[1]
-        rotation[2][1] = yaxis[2]
-        rotation[0][2] = zaxis[0]
-        rotation[1][2] = zaxis[1]
-        rotation[2][2] = zaxis[2]
+        rotation[0][0] = axis_x[0]
+        rotation[1][0] = axis_x[1]
+        rotation[2][0] = axis_x[2]
+        rotation[0][1] = axis_y[0]
+        rotation[1][1] = axis_y[1]
+        rotation[2][1] = axis_y[2]
+        rotation[0][2] = axis_z[0]
+        rotation[1][2] = axis_z[1]
+        rotation[2][2] = axis_z[2]
 
         return rotation * translation
-
-
-aspect_ratio = 1
-
-camera_projection_matrix = None
-camera_view_matrix = None
 
 
 def window_resize(window, width, height):
@@ -106,7 +103,7 @@ def window_resize(window, width, height):
 
     aspect_ratio = width / height
 
-    camera_projection_matrix = pyrr.matrix44.create_perspective_projection_matrix(60.0, aspect_ratio, 0.1, 100.0)
+    camera_projection_matrix = pyrr.matrix44.create_perspective_projection_matrix(45.0, aspect_ratio, 0.1, 100.0)
 
 
 cam = Camera()
@@ -156,7 +153,7 @@ def mouse_callback(window, xpos, ypos):
     lastX = xpos
     lastY = ypos
 
-    cam.process_mouse_movement(offset_x, offset_y)
+    cam.turn_camera(offset_x, offset_y)
 
 
 class Shader:
@@ -197,8 +194,6 @@ class Texture:
 
     def load(self, path_to_texture):
         path_to_texture = path_to_res_folder + path_to_texture
-
-
         self.id = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.id)
         # Set the texture wrapping parameters
@@ -209,9 +204,11 @@ class Texture:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         # load image
         image = Image.open(path_to_texture)
+        # TODO: speed up this line:
         img_data = numpy.array(list(image.getdata()), numpy.uint8)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width, image.height, 0, GL_RGB, GL_UNSIGNED_BYTE, img_data)
         glBindTexture(GL_TEXTURE_2D, 0)
+
         return self.id
 
     def bind(self):
@@ -267,7 +264,8 @@ class TexturedCubes:
         glVertexAttribDivisor(4, 1)
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ibo)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.triangles.itemsize * len(self.triangles), self.triangles, GL_STATIC_DRAW)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.triangles.itemsize * len(self.triangles),
+                     self.triangles, GL_STATIC_DRAW)
 
         self.view_uniform_location = glGetUniformLocation(self.shader.get_shader(), "view")
         self.projection_uniform_location = glGetUniformLocation(self.shader.get_shader(), "projection")
@@ -346,7 +344,6 @@ class Object:
     def __init__(self, texture_location, object_location):
         self.points = numpy.zeros(0)
         self.load_data(object_location)
-
 
         self.shader = Shader()
         self.shader.compile_shader("res/shaders/textured_object.vs", "res/shaders/textured_object.fs")
@@ -440,7 +437,6 @@ class Object:
                 # THIS RESOLVES THE 'WINDOW STOPPED RESPONDING' PROBLEM
                 glfw.poll_events()
                 keep_alive_counter = 0
-                print("ok")
 
             if line.startswith('#'):
                 continue
@@ -542,7 +538,10 @@ class Program:
         self.window_width = None
         self.window_name = None
 
-        glClearColor(0.0, 0.0, 0.0, 1.0)
+        self.background_color_r = 0.0
+        self.background_color_g = 0.0
+        self.background_color_b = 0.0
+        self.background_color_alpha = 1.0
 
     def create_window(self, **kwargs):
         self.window_width = kwargs.get('width', 800)
@@ -562,21 +561,20 @@ class Program:
 
         glfw.make_context_current(self.window)
 
-        cam.process_mouse_movement(0, 0)
+        cam.turn_camera(0, 0)
 
     def window_loop(self, user_function):
         global camera_view_matrix
 
         fps = FPS(1)
-        count = 0
-        sum = 0
 
         glEnable(GL_DEPTH_TEST)
 
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
             do_movement()
-            glClearColor(0.0, 0.0, 0.0, 1.0)
+            glClearColor(self.background_color_r, self.background_color_g,
+                         self.background_color_b, self.background_color_alpha)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
             camera_view_matrix = cam.get_view_matrix()
@@ -585,9 +583,4 @@ class Program:
 
             glfw.swap_buffers(self.window)
 
-            add = fps.updateAndPrint()
-
-            if add > 0:
-                sum += add
-                count += 1
-                print(sum / count)
+            fps.updateAndPrint()
