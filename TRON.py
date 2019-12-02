@@ -403,24 +403,25 @@ class Object:
         glUniformMatrix4fv(self.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
 
         for i in range(self.count_subobjects):
-            self.materials[self.subobjects[i].material_id].texture.bind()
+            if self.materials[self.subobjects[i].material_id].texture is not None:
+                self.materials[self.subobjects[i].material_id].texture.bind()
+            if self.materials[self.subobjects[i].material_id].texture is not None:
+                glBindVertexArray(self.vaos[i])
+                glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i])
+                glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
+                             rotation_array, GL_DYNAMIC_DRAW)
+                glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i])
+                glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array),
+                             instance_array, GL_DYNAMIC_DRAW)
+                glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i])
+                glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array), resize_array, GL_DYNAMIC_DRAW)
 
-            glBindVertexArray(self.vaos[i])
-            glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i])
-            glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
-                         rotation_array, GL_DYNAMIC_DRAW)
-            glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i])
-            glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array),
-                         instance_array, GL_DYNAMIC_DRAW)
-            glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i])
-            glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array), resize_array, GL_DYNAMIC_DRAW)
-
-            count_objects = int(len(rotation_array) / 3)
-            if not keys[glfw.KEY_P]:
-                glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].points), count_objects)
-            else:
-                glPointSize(2)
-                glDrawArraysInstanced(GL_POINTS, 0, len(self.subobjects[i].points), count_objects)
+                count_objects = int(len(rotation_array) / 3)
+                if not keys[glfw.KEY_P]:
+                    glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].points), count_objects)
+                else:
+                    glPointSize(2)
+                    glDrawArraysInstanced(GL_POINTS, 0, len(self.subobjects[i].points), count_objects)
 
     def load_data(self, texture_dir_location, object_file_location):
         mtl_file_location = object_file_location.replace(".obj", ".mtl")
@@ -471,6 +472,7 @@ class Object:
 
         for i in self.materials:
             if i.map_kd != "":
+                i.texture = Texture()
                 i.texture.load(texture_dir_location + i.map_kd)
 
         keep_alive_counter = 0
@@ -549,6 +551,7 @@ class Object:
                 for i in range(len(self.materials)):
                     if self.materials[i].name == material_name:
                         self.subobjects[last_it].material_id = i
+                        break
 
         for i in range(len(tmp_vertex_index)):
             add_array = []
@@ -562,7 +565,7 @@ class SubObject:
     def __init__(self):
         self.name = ""
         self.points = []
-        self.material_id = ""
+        self.material_id = 0
 
 
 class Material:
@@ -581,7 +584,7 @@ class Material:
         self.map_bump = ""
         self.map_d = ""
 
-        self.texture = Texture()
+        self.texture = None
 
 
 class FPS:
