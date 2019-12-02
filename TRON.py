@@ -158,6 +158,8 @@ def mouse_callback(window, xpos, ypos):
 class Shader:
     def __init__(self):
         self.shader = None
+        self.view_uniform_location = None
+        self.projection_uniform_location = None
 
     def compile_shader(self, vertex_shader_location, fragment_shader_location):
         vertex_shader_location = path_to_res_folder + vertex_shader_location
@@ -169,6 +171,9 @@ class Shader:
         self.shader = OpenGL.GL.shaders.compileProgram(
             OpenGL.GL.shaders.compileShader(vertex_shader_sourcecode, GL_VERTEX_SHADER),
             OpenGL.GL.shaders.compileShader(fragment_shader_sourcecode, GL_FRAGMENT_SHADER))
+
+        self.view_uniform_location = glGetUniformLocation(self.shader, "view")
+        self.projection_uniform_location = glGetUniformLocation(self.shader, "projection")
 
     def get_shader(self):
         return self.shader
@@ -185,6 +190,10 @@ class Shader:
 
     def unbind(self):
         glUseProgram(0)
+
+
+shader_texture = Shader()
+shader_common = Shader()
 
 
 class Texture:
@@ -347,9 +356,6 @@ class Object:
         self.load_data(texture_dir_location, object_file_location)
         self.count_subobjects = len(self.subobjects)
 
-        self.shader = Shader()
-        self.shader.compile_shader("res/shaders/textured_object.vs", "res/shaders/textured_object.fs")
-
         self.vaos = glGenVertexArrays(self.count_subobjects)
         self.points_vbos = glGenBuffers(self.count_subobjects)
         self.instance_vbos = glGenBuffers(self.count_subobjects)
@@ -387,9 +393,6 @@ class Object:
             glEnableVertexAttribArray(4)
             glVertexAttribDivisor(4, 1)
 
-        self.view_uniform_location = glGetUniformLocation(self.shader.get_shader(), "view")
-        self.projection_uniform_location = glGetUniformLocation(self.shader.get_shader(), "projection")
-
         glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
         glBindVertexArray(0)
@@ -397,10 +400,11 @@ class Object:
 
     def draw(self, rotation_array, instance_array, resize_array):
         global aspect_ratio, camera_projection_matrix, camera_view_matrix
+        global shader_texture
 
-        self.shader.bind()
-        glUniformMatrix4fv(self.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
-        glUniformMatrix4fv(self.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
+        shader_texture.bind()
+        glUniformMatrix4fv(shader_texture.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(shader_texture.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
 
         for i in range(self.count_subobjects):
             if self.materials[self.subobjects[i].material_id].texture is not None:
@@ -475,6 +479,13 @@ class Object:
                 i.texture = Texture()
                 i.texture.load(texture_dir_location + i.map_kd)
 
+        for mat in self.materials:
+            print(mat.name, "-- ", end="")
+            if mat.texture is None:
+                print("No texture")
+            else:
+                print(mat.map_kd)
+
         keep_alive_counter = 0
 
         object_file_location = path_to_res_folder + object_file_location
@@ -490,19 +501,16 @@ class Object:
         tmp_normal_index = []
 
         for line in open(object_file_location, 'r'):
-            line = line.replace("\n", "")
             keep_alive_counter += 1
             if keep_alive_counter == 10 ** 5:
                 # THIS RESOLVES THE 'WINDOW STOPPED RESPONDING' PROBLEM
                 glfw.poll_events()
                 keep_alive_counter = 0
-                print("ok")
 
+            line = line.replace("\n", "")
             if line.startswith("#"):
                 continue
-
             data = line.split(" ")
-
             if not data:
                 continue
 
@@ -649,6 +657,10 @@ class Program:
         glfw.make_context_current(self.window)
 
         cam.turn_camera(0, 0)
+
+        global shader_texture, shader_common
+        shader_texture.compile_shader("res/shaders/textured_object.vs", "res/shaders/textured_object.fs")
+        shader_common.compile_shader("res/shaders/common_object.vs", "res/shaders/common_object.fs")
 
     def window_loop(self, user_function):
         global camera_view_matrix
