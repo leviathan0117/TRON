@@ -8,7 +8,6 @@ import time
 import math
 from PIL import Image
 
-
 path_to_res_folder = ""
 aspect_ratio = 1
 camera_projection_matrix = None
@@ -341,50 +340,52 @@ class TexturedCubes:
 
 
 class Object:
-    def __init__(self, texture_location, object_location):
-        self.points = numpy.zeros(0)
-        self.load_data(object_location)
+    def __init__(self, texture_dir_location, object_file_location):
+        self.materials = []
+        self.subobjects = []
+
+        self.load_data(texture_dir_location, object_file_location)
+        self.count_subobjects = len(self.subobjects)
 
         self.shader = Shader()
         self.shader.compile_shader("res/shaders/textured_object.vs", "res/shaders/textured_object.fs")
 
-        self.texture = Texture()
-        self.texture.load(texture_location)
+        self.vaos = glGenVertexArrays(self.count_subobjects)
+        self.points_vbos = glGenBuffers(self.count_subobjects)
+        self.instance_vbos = glGenBuffers(self.count_subobjects)
+        self.rotation_vbos = glGenBuffers(self.count_subobjects)
+        self.resize_vbos = glGenBuffers(self.count_subobjects)
 
-        self.vao = glGenVertexArrays(1)
-        self.points_vbo = glGenBuffers(1)
-        self.instance_vbo = glGenBuffers(1)
-        self.rotation_vbo = glGenBuffers(1)
-        self.resize_vbo = glGenBuffers(1)
+        for i in range(self.count_subobjects):
+            glBindVertexArray(self.vaos[i])
 
-        glBindVertexArray(self.vao)
+            glBindBuffer(GL_ARRAY_BUFFER, self.points_vbos[i])
+            glBufferData(GL_ARRAY_BUFFER, self.subobjects[i].points.itemsize * len(self.subobjects[i].points),
+                         self.subobjects[i].points, GL_STATIC_DRAW)
+            # position - 0
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].points.itemsize * 5, ctypes.c_void_p(0))
+            glEnableVertexAttribArray(0)
+            # textures - 1
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.subobjects[i].points.itemsize * 5, ctypes.c_void_p(12))
+            glEnableVertexAttribArray(1)
 
-        glBindBuffer(GL_ARRAY_BUFFER, self.points_vbo)
-        glBufferData(GL_ARRAY_BUFFER, self.points.itemsize * len(self.points), self.points, GL_STATIC_DRAW)
-        # position - 0
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.points.itemsize * 5, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(0)
-        # textures - 1
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.points.itemsize * 5, ctypes.c_void_p(12))
-        glEnableVertexAttribArray(1)
+            glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i])
+            # instance - 2
+            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+            glEnableVertexAttribArray(2)
+            glVertexAttribDivisor(2, 1)
 
-        glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
-        # instance - 2
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(2)
-        glVertexAttribDivisor(2, 1)
+            glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i])
+            # rotation - 3
+            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+            glEnableVertexAttribArray(3)
+            glVertexAttribDivisor(3, 1)
 
-        glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
-        # rotation - 3
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(3)
-        glVertexAttribDivisor(3, 1)
-
-        glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbo)
-        # resize - 4
-        glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(4)
-        glVertexAttribDivisor(4, 1)
+            glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i])
+            # resize - 4
+            glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+            glEnableVertexAttribArray(4)
+            glVertexAttribDivisor(4, 1)
 
         self.view_uniform_location = glGetUniformLocation(self.shader.get_shader(), "view")
         self.projection_uniform_location = glGetUniformLocation(self.shader.get_shader(), "projection")
@@ -397,107 +398,190 @@ class Object:
     def draw(self, rotation_array, instance_array, resize_array):
         global aspect_ratio, camera_projection_matrix, camera_view_matrix
 
-        self.texture.bind()
-
         self.shader.bind()
         glUniformMatrix4fv(self.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
         glUniformMatrix4fv(self.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
 
-        glBindVertexArray(self.vao)
-        glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
-        glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array), rotation_array, GL_DYNAMIC_DRAW)
-        glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
-        glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array), instance_array, GL_DYNAMIC_DRAW)
-        glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbo)
-        glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array), resize_array, GL_DYNAMIC_DRAW)
+        for i in range(self.count_subobjects):
+            self.materials[self.subobjects[i].material_id].texture.bind()
 
-        count_objects = int(len(rotation_array) / 3)
-        if not keys[glfw.KEY_P]:
-            glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.points), count_objects)
-        else:
-            glLineWidth(2)
-            glDrawArraysInstanced(GL_LINES, 0, len(self.points), count_objects)
+            glBindVertexArray(self.vaos[i])
+            glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i])
+            glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
+                         rotation_array, GL_DYNAMIC_DRAW)
+            glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i])
+            glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array),
+                         instance_array, GL_DYNAMIC_DRAW)
+            glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i])
+            glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array), resize_array, GL_DYNAMIC_DRAW)
 
-    def load_data(self, object_location):
-        vertex_cords = []
-        texture_cords = []
-        normal_cords = []
+            count_objects = int(len(rotation_array) / 3)
+            if not keys[glfw.KEY_P]:
+                glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].points), count_objects)
+            else:
+                glPointSize(2)
+                glDrawArraysInstanced(GL_POINTS, 0, len(self.subobjects[i].points), count_objects)
 
-        vertex_index = []
-        texture_index = []
-        normal_index = []
+    def load_data(self, texture_dir_location, object_file_location):
+        mtl_file_location = object_file_location.replace(".obj", ".mtl")
+        last_it = -1
 
-        object_location = path_to_res_folder + object_location
+        for line in open(mtl_file_location, "r"):
+            # delete the ending '\n'
+            line = line.replace("\n", "")
+
+            if line.startswith("#"):
+                continue
+            elif line.startswith("newmtl"):
+                self.materials.append(Material())
+                last_it += 1
+
+                value = line.split(" ")[1]
+                self.materials[last_it].name = value
+            elif line.startswith("Ns"):
+                value = line.split(" ")[1]
+                self.materials[last_it].ns = float(value)
+            elif line.startswith("Ka"):
+                values = line.split(" ")
+                self.materials[last_it].ka.append(float(values[1]))
+                self.materials[last_it].ka.append(float(values[2]))
+                self.materials[last_it].ka.append(float(values[3]))
+            elif line.startswith("Kd"):
+                values = line.split(" ")
+                self.materials[last_it].kd.append(float(values[1]))
+                self.materials[last_it].kd.append(float(values[2]))
+                self.materials[last_it].kd.append(float(values[3]))
+            elif line.startswith("Ks"):
+                values = line.split(" ")
+                self.materials[last_it].ks.append(float(values[1]))
+                self.materials[last_it].ks.append(float(values[2]))
+                self.materials[last_it].ks.append(float(values[3]))
+            elif line.startswith("Ni"):
+                value = line.split(" ")[1]
+                self.materials[last_it].ni = float(value)
+            elif line.startswith("d"):
+                value = line.split(" ")[1]
+                self.materials[last_it].transparency = float(value)
+            elif line.startswith("illum"):
+                value = line.split(" ")[1]
+                self.materials[last_it].illum = int(value)
+            elif line.startswith("map_Kd"):
+                value = line.split(" ")[1]
+                self.materials[last_it].map_kd = value
+
+        for i in self.materials:
+            if i.map_kd != "":
+                i.texture.load(texture_dir_location + i.map_kd)
 
         keep_alive_counter = 0
 
-        for line in open(object_location, 'r'):
+        object_file_location = path_to_res_folder + object_file_location
+        
+        last_it = -1
+
+        tmp_vertex_coordinates = []
+        tmp_texture_coordinates = []
+        tmp_normal_coordinates = []
+
+        tmp_vertex_index = []
+        tmp_texture_index = []
+        tmp_normal_index = []
+
+        for line in open(object_file_location, 'r'):
+            line = line.replace("\n", "")
             keep_alive_counter += 1
-            if keep_alive_counter == 10**5:
+            if keep_alive_counter == 10 ** 5:
                 # THIS RESOLVES THE 'WINDOW STOPPED RESPONDING' PROBLEM
                 glfw.poll_events()
                 keep_alive_counter = 0
+                print("ok")
 
-            if line.startswith('#'):
-                continue
-            values = line.split()
-            if not values:
+            if line.startswith("#"):
                 continue
 
-            if values[0] == 'v':
-                vertex_cords.append(values[1:4])
-            if values[0] == 'vt':
-                texture_cords.append(values[1:3])
-            if values[0] == 'vn':
-                normal_cords.append(values[1:4])
+            data = line.split(" ")
 
-            if values[0] == 'f':
-                face_i = []
-                text_i = []
-                norm_i = []
-                for v in values[1:4]:
-                    w = v.split('/')
-                    if len(w) >= 2:
-                        face_i.append(int(w[0]) - 1)
-                        text_i.append(int(w[1]) - 1)
-                    if len(w) == 3:
-                        norm_i.append(int(w[2]) - 1)
-                vertex_index.append(face_i)
-                texture_index.append(text_i)
-                normal_index.append(norm_i)
-                if len(values) == 5:
-                    face_i = []
-                    text_i = []
-                    norm_i = []
-                    for v in values[3:5]:
-                        w = v.split('/')
-                        face_i.append(int(w[0]) - 1)
-                        text_i.append(int(w[1]) - 1)
-                        if len(w) == 3:
-                            norm_i.append(int(w[2]) - 1)
-                    for v in values[1:2]:
-                        w = v.split('/')
-                        face_i.append(int(w[0]) - 1)
-                        text_i.append(int(w[1]) - 1)
-                        if len(w) == 3:
-                            norm_i.append(int(w[2]) - 1)
-                    vertex_index.append(face_i)
-                    texture_index.append(text_i)
-                    normal_index.append(norm_i)
+            if not data:
+                continue
 
-        vertex_index = [y for x in vertex_index for y in x]
-        texture_index = [y for x in texture_index for y in x]
-        normal_index = [y for x in normal_index for y in x]
+            if data[0] == "o":
+                if last_it != -1:
+                    for i in range(len(tmp_vertex_index)):
+                        add_array = []
+                        add_array.extend(tmp_vertex_coordinates[tmp_vertex_index[i]])
+                        add_array.extend(tmp_texture_coordinates[tmp_texture_index[i]])
+                        self.subobjects[last_it].points.append(add_array)
+                    self.subobjects[last_it].points = numpy.array(self.subobjects[last_it].points,
+                                                                  dtype=numpy.float32).flatten()
 
-        self.points = []
+                self.subobjects.append(SubObject())
+                last_it += 1
 
-        for i in range(len(vertex_index)):
+                tmp_vertex_index = []
+                tmp_texture_index = []
+                tmp_normal_index = []
+
+                self.subobjects[last_it].name = data[1]
+            elif data[0] == "v":
+                tmp_vertex_coordinates.append([float(data[1]), float(data[2]), float(data[3])])
+            elif data[0] == "vt":
+                tmp_texture_coordinates.append([float(data[1]), float(data[2])])
+            elif data[0] == "vn":
+                tmp_normal_coordinates.append([float(data[1]), float(data[2]), float(data[3])])
+            elif data[0] == "f":
+                indexes = data[1].split("/")
+                tmp_vertex_index.append(int(indexes[0]) - 1)
+                tmp_texture_index.append(int(indexes[1]) - 1)
+                tmp_normal_index.append(int(indexes[2]) - 1)
+                indexes = data[2].split("/")
+                tmp_vertex_index.append(int(indexes[0]) - 1)
+                tmp_texture_index.append(int(indexes[1]) - 1)
+                tmp_normal_index.append(int(indexes[2]) - 1)
+                indexes = data[3].split("/")
+                tmp_vertex_index.append(int(indexes[0]) - 1)
+                tmp_texture_index.append(int(indexes[1]) - 1)
+                tmp_normal_index.append(int(indexes[2]) - 1)
+                if len(data) == 5:
+                    pass
+                    # TODO: add appropriate code here
+            elif data[0] == "usemtl":
+                material_name = data[1]
+                for i in range(len(self.materials)):
+                    if self.materials[i].name == material_name:
+                        self.subobjects[last_it].material_id = i
+
+        for i in range(len(tmp_vertex_index)):
             add_array = []
-            add_array.extend(vertex_cords[vertex_index[i]])
-            add_array.extend(texture_cords[texture_index[i]])
-            self.points.append(add_array)
+            add_array.extend(tmp_vertex_coordinates[tmp_vertex_index[i]])
+            add_array.extend(tmp_texture_coordinates[tmp_texture_index[i]])
+            self.subobjects[last_it].points.append(add_array)
+        self.subobjects[last_it].points = numpy.array(self.subobjects[last_it].points, dtype=numpy.float32).flatten()
 
-        self.points = numpy.array(self.points, dtype=numpy.float32).flatten()
+
+class SubObject:
+    def __init__(self):
+        self.name = ""
+        self.points = []
+        self.material_id = ""
+
+
+class Material:
+    def __init__(self):
+        self.name = ""
+        self.ns = 0
+        self.kd = []
+        self.ka = []
+        self.ks = []
+        self.ni = 0
+        self.d = 0
+        self.illum = 0
+        self.map_kd = ""
+        self.map_ks = ""
+        self.map_ka = ""
+        self.map_bump = ""
+        self.map_d = ""
+
+        self.texture = Texture()
 
 
 class FPS:
@@ -509,13 +593,13 @@ class FPS:
     def update(self):
         self.counter += 1
 
-    def printFPS(self):
+    def print_fps(self):
         if (time.time() - self.startTime) > self.interval:
             print("FPS: ", self.counter / (time.time() - self.startTime))
             self.counter = 0
             self.startTime = time.time()
 
-    def updateAndPrint(self):
+    def update_and_print(self):
         self.counter += 1
         if (time.time() - self.startTime) > self.interval:
             fps = self.counter / (time.time() - self.startTime)
@@ -583,4 +667,4 @@ class Program:
 
             glfw.swap_buffers(self.window)
 
-            fps.updateAndPrint()
+            fps.update_and_print()
