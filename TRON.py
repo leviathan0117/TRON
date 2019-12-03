@@ -499,6 +499,7 @@ class Object:
         # sys.exit(0)
 
     def load_data(self, texture_dir_location, object_file_location):
+        object_file_location = path_to_res_folder + object_file_location
         mtl_file_location = object_file_location.replace(".obj", ".mtl")
         last_it = -1
 
@@ -551,8 +552,6 @@ class Object:
                 i.texture.load(texture_dir_location + i.map_kd)
 
         keep_alive_counter = 0
-
-        object_file_location = path_to_res_folder + object_file_location
 
         tmp_vertex_coordinates = []
         tmp_texture_coordinates = []

@@ -8,24 +8,24 @@ TRON.path_to_res_folder = "../"
 my_window = TRON.Program()
 my_window.create_window(name="Example 2", width=1920, height=1080)
 
-object_array_size = 100
+helicopter = TRON.Object("res/textures/uh60/", "res/objects/uh60.obj")
+
+object_array_size = 1
 
 instance_array = numpy.zeros((object_array_size, 3))
 for x in range(0, object_array_size, 1):
     instance_array[x][0] = 5
     instance_array[x][1] = 0
-    instance_array[x][2] = x
+    instance_array[x][2] = x * 2
 instance_array = numpy.array(instance_array, numpy.float32).flatten()
 
 resize_array = numpy.zeros(object_array_size, numpy.float32)
 for x in range(0, object_array_size, 1):
-    resize_array[x] = 0.13
-
-monster = TRON.Object("res/textures/monster.jpg", "res/objects/monster.obj")
+    resize_array[x] = 1
 
 a1 = 0
 a2 = 0
-a3 = 0
+a3 = -3.14/2
 
 
 def user_function():
@@ -45,7 +45,7 @@ def user_function():
         a3 -= 0.1
 
     rotation_array = numpy.zeros((object_array_size, 3))
-    for x in range(0, object_array_size, 1):
+    for i in range(0, object_array_size, 1):
         # Rotations IN THE WAY THEY'RE APPLIED!!!
         # local pitch
         rotation_array[x][0] = a1
@@ -56,7 +56,11 @@ def user_function():
 
     rotation_array = numpy.array(rotation_array, numpy.float32).flatten()
 
-    monster.draw(rotation_array, instance_array, resize_array)
+    helicopter.draw(rotation_array, instance_array, resize_array)
 
+
+my_window.background_color_r = 0.5
+my_window.background_color_g = 0.5
+my_window.background_color_b = 0.5
 
 my_window.window_loop(user_function)
