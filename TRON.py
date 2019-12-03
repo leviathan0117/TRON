@@ -550,13 +550,6 @@ class Object:
                 i.texture = Texture()
                 i.texture.load(texture_dir_location + i.map_kd)
 
-        for mat in self.materials:
-            print(mat.name, "-- ", end="")
-            if mat.texture is None:
-                print("No texture")
-            else:
-                print(mat.map_kd)
-
         keep_alive_counter = 0
 
         object_file_location = path_to_res_folder + object_file_location
@@ -600,10 +593,8 @@ class Object:
                 current_material_name = data[1]
                 state = 1
             if data[0] == "o":
-                print("#################", data[1])
                 self.subobjects.append(SubObject())
                 self.subobjects[-1].name = data[1]
-
                 state = 1
 
             # Subpart handling:
@@ -662,11 +653,6 @@ class Object:
             sub.count_parts = len(sub.parts)
             for part in sub.parts:
                 part.points = numpy.array(part.points, dtype=numpy.float32).flatten()
-
-        # for sub in self.subobjects:
-        #    print(sub.name, sub.count_parts)
-
-        #sys.exit(0)
 
 
 class SubObjectPart:
