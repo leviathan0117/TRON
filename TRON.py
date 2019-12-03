@@ -356,42 +356,86 @@ class Object:
         self.load_data(texture_dir_location, object_file_location)
         self.count_subobjects = len(self.subobjects)
 
-        self.vaos = glGenVertexArrays(self.count_subobjects)
-        self.points_vbos = glGenBuffers(self.count_subobjects)
-        self.instance_vbos = glGenBuffers(self.count_subobjects)
-        self.rotation_vbos = glGenBuffers(self.count_subobjects)
-        self.resize_vbos = glGenBuffers(self.count_subobjects)
+        self.vaos = []
+        self.points_vbos = []
+        self.instance_vbos = []
+        self.rotation_vbos = []
+        self.resize_vbos = []
 
         for i in range(self.count_subobjects):
-            glBindVertexArray(self.vaos[i])
+            self.vaos.append(glGenVertexArrays(max(self.subobjects[i].count_parts, 2)))
+            self.points_vbos.append(glGenBuffers(max(self.subobjects[i].count_parts, 2)))
+            self.instance_vbos.append(glGenBuffers(max(self.subobjects[i].count_parts, 2)))
+            self.rotation_vbos.append(glGenBuffers(max(self.subobjects[i].count_parts, 2)))
+            self.resize_vbos.append(glGenBuffers(max(self.subobjects[i].count_parts, 2)))
 
-            glBindBuffer(GL_ARRAY_BUFFER, self.points_vbos[i])
-            glBufferData(GL_ARRAY_BUFFER, self.subobjects[i].points.itemsize * len(self.subobjects[i].points),
-                         self.subobjects[i].points, GL_STATIC_DRAW)
-            # position - 0
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].points.itemsize * 5, ctypes.c_void_p(0))
-            glEnableVertexAttribArray(0)
-            # textures - 1
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.subobjects[i].points.itemsize * 5, ctypes.c_void_p(12))
-            glEnableVertexAttribArray(1)
+            for j in range(self.subobjects[i].count_parts):
+                if self.materials[self.subobjects[i].parts[j].material_id].texture is not None:
+                    glBindVertexArray(self.vaos[i][j])
 
-            glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i])
-            # instance - 2
-            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
-            glEnableVertexAttribArray(2)
-            glVertexAttribDivisor(2, 1)
+                    glBindBuffer(GL_ARRAY_BUFFER, self.points_vbos[i][j])
+                    glBufferData(GL_ARRAY_BUFFER,
+                                 self.subobjects[i].parts[j].points.itemsize * len(self.subobjects[i].parts[j].points),
+                                 self.subobjects[i].parts[j].points, GL_STATIC_DRAW)
+                    # position - 0
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 5,
+                                          ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(0)
+                    # textures - 1
+                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 5,
+                                          ctypes.c_void_p(12))
+                    glEnableVertexAttribArray(1)
 
-            glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i])
-            # rotation - 3
-            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
-            glEnableVertexAttribArray(3)
-            glVertexAttribDivisor(3, 1)
+                    glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
+                    # instance - 2
+                    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(2)
+                    glVertexAttribDivisor(2, 1)
 
-            glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i])
-            # resize - 4
-            glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
-            glEnableVertexAttribArray(4)
-            glVertexAttribDivisor(4, 1)
+                    glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
+                    # rotation - 3
+                    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(3)
+                    glVertexAttribDivisor(3, 1)
+
+                    glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
+                    # resize - 4
+                    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(4)
+                    glVertexAttribDivisor(4, 1)
+                else:
+                    glBindVertexArray(self.vaos[i][j])
+
+                    glBindBuffer(GL_ARRAY_BUFFER, self.points_vbos[i][j])
+                    glBufferData(GL_ARRAY_BUFFER,
+                                 self.subobjects[i].parts[j].points.itemsize * len(self.subobjects[i].parts[j].points),
+                                 self.subobjects[i].parts[j].points, GL_STATIC_DRAW)
+                    # position - 0
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 7,
+                                          ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(0)
+                    # color - 1
+                    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 7,
+                                          ctypes.c_void_p(12))
+                    glEnableVertexAttribArray(1)
+
+                    glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
+                    # instance - 2
+                    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(2)
+                    glVertexAttribDivisor(2, 1)
+
+                    glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
+                    # rotation - 3
+                    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(3)
+                    glVertexAttribDivisor(3, 1)
+
+                    glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
+                    # resize - 4
+                    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(4)
+                    glVertexAttribDivisor(4, 1)
 
         glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
@@ -400,32 +444,59 @@ class Object:
 
     def draw(self, rotation_array, instance_array, resize_array):
         global aspect_ratio, camera_projection_matrix, camera_view_matrix
-        global shader_texture
-
-        shader_texture.bind()
-        glUniformMatrix4fv(shader_texture.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
-        glUniformMatrix4fv(shader_texture.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
+        global shader_texture, shader_common
 
         for i in range(self.count_subobjects):
-            if self.materials[self.subobjects[i].material_id].texture is not None:
-                self.materials[self.subobjects[i].material_id].texture.bind()
-            if self.materials[self.subobjects[i].material_id].texture is not None:
-                glBindVertexArray(self.vaos[i])
-                glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i])
-                glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
-                             rotation_array, GL_DYNAMIC_DRAW)
-                glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i])
-                glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array),
-                             instance_array, GL_DYNAMIC_DRAW)
-                glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i])
-                glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array), resize_array, GL_DYNAMIC_DRAW)
+            for j in range(self.subobjects[i].count_parts):
+                if self.materials[self.subobjects[i].parts[j].material_id].texture is not None:
+                    shader_texture.bind()
+                    glUniformMatrix4fv(shader_texture.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+                    glUniformMatrix4fv(shader_texture.projection_uniform_location, 1, GL_FALSE,
+                                       camera_projection_matrix)
+                    self.materials[self.subobjects[i].parts[j].material_id].texture.bind()
+                    glBindVertexArray(self.vaos[i][j])
+                    glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
+                    glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
+                                 rotation_array, GL_DYNAMIC_DRAW)
+                    glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
+                    glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array),
+                                 instance_array, GL_DYNAMIC_DRAW)
+                    glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
+                    glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array),
+                                 resize_array, GL_DYNAMIC_DRAW)
 
-                count_objects = int(len(rotation_array) / 3)
-                if not keys[glfw.KEY_P]:
-                    glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].points), count_objects)
-                else:
-                    glPointSize(2)
-                    glDrawArraysInstanced(GL_POINTS, 0, len(self.subobjects[i].points), count_objects)
+                    count_objects = int(len(rotation_array) / 3)
+                    if not keys[glfw.KEY_P]:
+                        glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
+                        pass
+                    else:
+                        glPointSize(2)
+                        glDrawArraysInstanced(GL_POINTS, 0, len(self.subobjects[i].parts[j].points), count_objects)
+        for i in range(self.count_subobjects):
+            for j in range(self.subobjects[i].count_parts):
+                if self.materials[self.subobjects[i].parts[j].material_id].texture is None:
+                    shader_common.bind()
+                    glUniformMatrix4fv(shader_common.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+                    glUniformMatrix4fv(shader_common.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
+
+                    glBindVertexArray(self.vaos[i][j])
+                    glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
+                    glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
+                                 rotation_array, GL_DYNAMIC_DRAW)
+                    glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
+                    glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array),
+                                 instance_array, GL_DYNAMIC_DRAW)
+                    glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
+                    glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array),
+                                 resize_array, GL_DYNAMIC_DRAW)
+
+                    count_objects = int(len(rotation_array) / 3)
+                    if not keys[glfw.KEY_P]:
+                        glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
+                    else:
+                        glPointSize(2)
+                        glDrawArraysInstanced(GL_POINTS, 0, len(self.subobjects[i].parts[j].points), count_objects)
+        # sys.exit(0)
 
     def load_data(self, texture_dir_location, object_file_location):
         mtl_file_location = object_file_location.replace(".obj", ".mtl")
@@ -466,7 +537,7 @@ class Object:
                 self.materials[last_it].ni = float(value)
             elif line.startswith("d"):
                 value = line.split(" ")[1]
-                self.materials[last_it].transparency = float(value)
+                self.materials[last_it].d = float(value)
             elif line.startswith("illum"):
                 value = line.split(" ")[1]
                 self.materials[last_it].illum = int(value)
@@ -489,8 +560,6 @@ class Object:
         keep_alive_counter = 0
 
         object_file_location = path_to_res_folder + object_file_location
-        
-        last_it = -1
 
         tmp_vertex_coordinates = []
         tmp_texture_coordinates = []
@@ -499,6 +568,10 @@ class Object:
         tmp_vertex_index = []
         tmp_texture_index = []
         tmp_normal_index = []
+
+        state = 0
+        current_material_name = 0
+        current_material = None
 
         for line in open(object_file_location, 'r'):
             keep_alive_counter += 1
@@ -514,66 +587,99 @@ class Object:
             if not data:
                 continue
 
-            if data[0] == "o":
-                if last_it != -1:
-                    for i in range(len(tmp_vertex_index)):
-                        add_array = []
-                        add_array.extend(tmp_vertex_coordinates[tmp_vertex_index[i]])
-                        add_array.extend(tmp_texture_coordinates[tmp_texture_index[i]])
-                        self.subobjects[last_it].points.append(add_array)
-                    self.subobjects[last_it].points = numpy.array(self.subobjects[last_it].points,
-                                                                  dtype=numpy.float32).flatten()
-
-                self.subobjects.append(SubObject())
-                last_it += 1
-
-                tmp_vertex_index = []
-                tmp_texture_index = []
-                tmp_normal_index = []
-
-                self.subobjects[last_it].name = data[1]
-            elif data[0] == "v":
+            # Points data:
+            if data[0] == "v":
                 tmp_vertex_coordinates.append([float(data[1]), float(data[2]), float(data[3])])
-            elif data[0] == "vt":
+            if data[0] == "vt":
                 tmp_texture_coordinates.append([float(data[1]), float(data[2])])
-            elif data[0] == "vn":
+            if data[0] == "vn":
                 tmp_normal_coordinates.append([float(data[1]), float(data[2]), float(data[3])])
-            elif data[0] == "f":
-                indexes = data[1].split("/")
-                tmp_vertex_index.append(int(indexes[0]) - 1)
-                tmp_texture_index.append(int(indexes[1]) - 1)
-                tmp_normal_index.append(int(indexes[2]) - 1)
-                indexes = data[2].split("/")
-                tmp_vertex_index.append(int(indexes[0]) - 1)
-                tmp_texture_index.append(int(indexes[1]) - 1)
-                tmp_normal_index.append(int(indexes[2]) - 1)
-                indexes = data[3].split("/")
-                tmp_vertex_index.append(int(indexes[0]) - 1)
-                tmp_texture_index.append(int(indexes[1]) - 1)
-                tmp_normal_index.append(int(indexes[2]) - 1)
-                if len(data) == 5:
-                    pass
-                    # TODO: add appropriate code here
-            elif data[0] == "usemtl":
-                material_name = data[1]
-                for i in range(len(self.materials)):
-                    if self.materials[i].name == material_name:
-                        self.subobjects[last_it].material_id = i
-                        break
 
-        for i in range(len(tmp_vertex_index)):
-            add_array = []
-            add_array.extend(tmp_vertex_coordinates[tmp_vertex_index[i]])
-            add_array.extend(tmp_texture_coordinates[tmp_texture_index[i]])
-            self.subobjects[last_it].points.append(add_array)
-        self.subobjects[last_it].points = numpy.array(self.subobjects[last_it].points, dtype=numpy.float32).flatten()
+            # Objects and materials:
+            if data[0] == "usemtl":
+                current_material_name = data[1]
+                state = 1
+            if data[0] == "o":
+                print("#################", data[1])
+                self.subobjects.append(SubObject())
+                self.subobjects[-1].name = data[1]
+
+                state = 1
+
+            # Subpart handling:
+            if data[0] == "f" and state:
+                self.subobjects[-1].parts.append(SubObjectPart())
+                for i in range(len(self.materials)):
+                    if self.materials[i].name == current_material_name:
+                        self.subobjects[-1].parts[-1].material_id = i
+                        current_material = self.materials[i]
+                state = 0
+                print("DATA ", current_material_name)
+            if data[0] == "f":
+                if current_material.texture is not None:
+                    indexes = data[1].split("/")
+                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    indexes = data[2].split("/")
+                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    indexes = data[3].split("/")
+                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    if len(data) == 5:
+                        indexes = data[3].split("/")
+                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                        indexes = data[4].split("/")
+                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                        indexes = data[1].split("/")
+                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                # This is when we don't need vertices
+                else:
+                    color = [current_material.kd[0], current_material.kd[1], current_material.kd[2], current_material.d]
+                    indexes = data[1].split("/")
+                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(color)
+                    indexes = data[2].split("/")
+                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(color)
+                    indexes = data[3].split("/")
+                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(color)
+                    if len(data) == 5:
+                        indexes = data[3].split("/")
+                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(color)
+                        indexes = data[4].split("/")
+                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(color)
+                        indexes = data[1].split("/")
+                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(color)
+        for sub in self.subobjects:
+            sub.count_parts = len(sub.parts)
+            for part in sub.parts:
+                part.points = numpy.array(part.points, dtype=numpy.float32).flatten()
+
+        # for sub in self.subobjects:
+        #    print(sub.name, sub.count_parts)
+
+        #sys.exit(0)
+
+
+class SubObjectPart:
+    def __init__(self):
+        self.material_id = 0
+        self.points = []
 
 
 class SubObject:
     def __init__(self):
         self.name = ""
-        self.points = []
-        self.material_id = 0
+        self.parts = []
+        self.count_parts = 0
 
 
 class Material:
@@ -668,6 +774,8 @@ class Program:
         fps = FPS(1)
 
         glEnable(GL_DEPTH_TEST)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glEnable(GL_BLEND)
 
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
