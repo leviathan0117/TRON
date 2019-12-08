@@ -230,7 +230,7 @@ class TexturedCubes:
         self.load_data()
 
         self.shader = Shader()
-        self.shader.compile_shader("res/shaders/textured_object.vs", "res/shaders/textured_object.fs")
+        self.shader.compile_shader("res/shaders/textured_object_vertex_shader.glsl", "res/shaders/textured_object_fragment_shader.glsl")
 
         self.texture = Texture()
         self.texture.load("res/textures/crate.jpg")
@@ -767,8 +767,8 @@ class Program:
         cam.turn_camera(0, 0)
 
         global shader_texture, shader_common
-        shader_texture.compile_shader("res/shaders/textured_object.vs", "res/shaders/textured_object.fs")
-        shader_common.compile_shader("res/shaders/common_object.vs", "res/shaders/common_object.fs")
+        shader_texture.compile_shader("res/shaders/textured_object_vertex_shader.glsl", "res/shaders/textured_object_fragment_shader.glsl")
+        shader_common.compile_shader("res/shaders/common_object_vertex_shader.glsl", "res/shaders/common_object_fragment_shader.glsl")
 
     def window_loop(self, user_function):
         global camera_view_matrix
