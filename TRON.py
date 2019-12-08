@@ -385,27 +385,28 @@ class Object:
                     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 8,
                                           ctypes.c_void_p(3 * 4))
                     glEnableVertexAttribArray(1)
+                    # normals - 2
                     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 8,
                                           ctypes.c_void_p((3 + 2) * 4))
                     glEnableVertexAttribArray(2)
 
                     glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
-                    # instance - 2
-                    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
-                    glEnableVertexAttribArray(2)
-                    glVertexAttribDivisor(2, 1)
-
-                    glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
-                    # rotation - 3
+                    # instance - 3
                     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
                     glEnableVertexAttribArray(3)
                     glVertexAttribDivisor(3, 1)
 
-                    glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
-                    # resize - 4
-                    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
+                    # rotation - 4
+                    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
                     glEnableVertexAttribArray(4)
                     glVertexAttribDivisor(4, 1)
+
+                    glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
+                    # resize - 5
+                    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(5)
+                    glVertexAttribDivisor(5, 1)
                 else:
                     glBindVertexArray(self.vaos[i][j])
 
@@ -421,27 +422,28 @@ class Object:
                     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 10,
                                           ctypes.c_void_p(12))
                     glEnableVertexAttribArray(1)
+                    # normals - 2
                     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 10,
                                           ctypes.c_void_p((3 + 4) * 4))
                     glEnableVertexAttribArray(2)
 
                     glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
-                    # instance - 2
-                    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
-                    glEnableVertexAttribArray(2)
-                    glVertexAttribDivisor(2, 1)
-
-                    glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
-                    # rotation - 3
+                    # instance - 3
                     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
                     glEnableVertexAttribArray(3)
                     glVertexAttribDivisor(3, 1)
 
-                    glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
-                    # resize - 4
-                    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
+                    # rotation - 4
+                    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
                     glEnableVertexAttribArray(4)
                     glVertexAttribDivisor(4, 1)
+
+                    glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
+                    # resize - 5
+                    glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(5)
+                    glVertexAttribDivisor(5, 1)
 
         glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
@@ -772,6 +774,7 @@ class Program:
 
     def window_loop(self, user_function):
         global camera_view_matrix
+        global shader_texture, shader_common
 
         fps = FPS(1)
 
@@ -787,6 +790,23 @@ class Program:
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
             camera_view_matrix = cam.get_view_matrix()
+
+
+            #glm::vec3 direction = glm::normalize(glm::vec3(0.0f, -1.0f, 1.0f));
+            shader_texture.bind()
+            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.direction")
+            glUniform3f(uniform, 0, -0.707107, 0.707107)
+            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.color")
+            glUniform3f(uniform, 1.0, 1.0, 1.0)
+            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.ambientIntensity")
+            glUniform1f(uniform, 0.1)
+            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.diffuseIntensity")
+            glUniform1f(uniform, 1)
+            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.specularIntensity")
+            glUniform1f(uniform, 1)
+            #glUniform1f(programId, "directionalLight.ambientIntensity", float(directionalLightEnabled)*0.1f);
+            #glUniform1f(programId, "directionalLight.diffuseIntensity", float(directionalLightEnabled)*0.1f);
+            #glUniform1f(programId, "directionalLight.specularIntensity", float(directionalLightEnabled)*1.0f);
 
             user_function()
 

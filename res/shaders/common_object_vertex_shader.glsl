@@ -1,9 +1,10 @@
 #version 330
 in layout(location = 0) vec3 position;
 in layout(location = 1) vec4 color_in;
-in layout(location = 2) vec3 offset;
-in layout(location = 3) vec3 rotation;
-in layout(location = 4) float resize;
+in layout(location = 2) vec3 normals;
+in layout(location = 3) vec3 offset;
+in layout(location = 4) vec3 rotation;
+in layout(location = 5) float resize;
 
 uniform mat4 view;
 uniform mat4 projection;
