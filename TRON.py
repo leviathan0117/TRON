@@ -8,7 +8,7 @@ import time
 import math
 from PIL import Image
 
-path_to_res_folder = ""
+path_to_res_folder = "./"
 aspect_ratio = 1
 camera_projection_matrix = None
 camera_view_matrix = None
@@ -378,13 +378,16 @@ class Object:
                                  self.subobjects[i].parts[j].points.itemsize * len(self.subobjects[i].parts[j].points),
                                  self.subobjects[i].parts[j].points, GL_STATIC_DRAW)
                     # position - 0
-                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 5,
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 8,
                                           ctypes.c_void_p(0))
                     glEnableVertexAttribArray(0)
                     # textures - 1
-                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 5,
-                                          ctypes.c_void_p(12))
+                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 8,
+                                          ctypes.c_void_p(3 * 4))
                     glEnableVertexAttribArray(1)
+                    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 8,
+                                          ctypes.c_void_p((3 + 2) * 4))
+                    glEnableVertexAttribArray(2)
 
                     glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
                     # instance - 2
@@ -411,13 +414,16 @@ class Object:
                                  self.subobjects[i].parts[j].points.itemsize * len(self.subobjects[i].parts[j].points),
                                  self.subobjects[i].parts[j].points, GL_STATIC_DRAW)
                     # position - 0
-                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 7,
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 10,
                                           ctypes.c_void_p(0))
                     glEnableVertexAttribArray(0)
                     # color - 1
-                    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 7,
+                    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 10,
                                           ctypes.c_void_p(12))
                     glEnableVertexAttribArray(1)
+                    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, self.subobjects[i].parts[j].points.itemsize * 10,
+                                          ctypes.c_void_p((3 + 4) * 4))
+                    glEnableVertexAttribArray(2)
 
                     glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
                     # instance - 2
@@ -604,50 +610,61 @@ class Object:
                         self.subobjects[-1].parts[-1].material_id = i
                         current_material = self.materials[i]
                 state = 0
-                print("DATA ", current_material_name)
             if data[0] == "f":
                 if current_material.texture is not None:
                     indexes = data[1].split("/")
                     self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                     self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     indexes = data[2].split("/")
                     self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                     self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     indexes = data[3].split("/")
                     self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                     self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     if len(data) == 5:
                         indexes = data[3].split("/")
                         self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                         self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[4].split("/")
                         self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                         self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[1].split("/")
                         self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                         self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                 # This is when we don't need vertices
                 else:
                     color = [current_material.kd[0], current_material.kd[1], current_material.kd[2], current_material.d]
                     indexes = data[1].split("/")
                     self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                     self.subobjects[-1].parts[-1].points.extend(color)
+                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     indexes = data[2].split("/")
                     self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                     self.subobjects[-1].parts[-1].points.extend(color)
+                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     indexes = data[3].split("/")
                     self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                     self.subobjects[-1].parts[-1].points.extend(color)
+                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     if len(data) == 5:
                         indexes = data[3].split("/")
                         self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                         self.subobjects[-1].parts[-1].points.extend(color)
+                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[4].split("/")
                         self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                         self.subobjects[-1].parts[-1].points.extend(color)
+                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[1].split("/")
                         self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
                         self.subobjects[-1].parts[-1].points.extend(color)
+                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
         for sub in self.subobjects:
             sub.count_parts = len(sub.parts)
             for part in sub.parts:
