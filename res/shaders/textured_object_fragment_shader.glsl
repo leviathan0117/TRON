@@ -16,8 +16,7 @@ struct DirectionalLight {
   float specularIntensity; // for debug purposes, should be set to 1.0
 };
 
-//uniform vec3 camera_position;
-vec3 camera_position = vec3(0.0, 0.0, 0.0);
+uniform vec3 camera_position;
 //uniform float materialSpecularFactor; // should be >= 1.0
 float materialSpecularFactor = 32.0;
 //uniform float materialSpecularIntensity;

@@ -10,6 +10,8 @@ uniform mat4 view;
 uniform mat4 projection;
 
 out vec4 color;
+out vec3 fragment_normal;
+out vec3 fragment_pos;
 
 mat3 getRotationMatrix(float pitch_angle, float yaw_angle, float roll_angle)
 {
@@ -45,5 +47,9 @@ void main()
     vec3 object_pos = vec3(position.x * resize, position.y * resize, position.z * resize) * mr;
     vec3 world_pos = vec3(object_pos.x + offset.x, object_pos.y + offset.y, object_pos.z + offset.z);
     gl_Position =  projection * view * vec4(world_pos, 1.0f);
+
+    fragment_normal = normals * mr;
+    fragment_pos = world_pos;
+
     color = color_in;
 }

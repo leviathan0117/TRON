@@ -474,12 +474,14 @@ class Object:
                                  resize_array, GL_DYNAMIC_DRAW)
 
                     count_objects = int(len(rotation_array) / 3)
-                    if not keys[glfw.KEY_P]:
-                        glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
-                        pass
-                    else:
+                    if keys[glfw.KEY_P]:
                         glPointSize(2)
                         glDrawArraysInstanced(GL_POINTS, 0, len(self.subobjects[i].parts[j].points), count_objects)
+                    elif keys[glfw.KEY_O]:
+                        glLineWidth(2)
+                        glDrawArraysInstanced(GL_LINES, 0, len(self.subobjects[i].parts[j].points), count_objects)
+                    else:
+                        glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
         for i in range(self.count_subobjects):
             for j in range(self.subobjects[i].count_parts):
                 if self.materials[self.subobjects[i].parts[j].material_id].texture is None:
@@ -499,11 +501,15 @@ class Object:
                                  resize_array, GL_DYNAMIC_DRAW)
 
                     count_objects = int(len(rotation_array) / 3)
-                    if not keys[glfw.KEY_P]:
-                        glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
-                    else:
+                    if keys[glfw.KEY_P]:
                         glPointSize(2)
                         glDrawArraysInstanced(GL_POINTS, 0, len(self.subobjects[i].parts[j].points), count_objects)
+                    elif keys[glfw.KEY_O]:
+                        glLineWidth(2)
+                        glDrawArraysInstanced(GL_LINES, 0, len(self.subobjects[i].parts[j].points), count_objects)
+                    else:
+                        glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
+
         # sys.exit(0)
 
     def load_data(self, texture_dir_location, object_file_location):
@@ -775,6 +781,7 @@ class Program:
     def window_loop(self, user_function):
         global camera_view_matrix
         global shader_texture, shader_common
+        global cam
 
         fps = FPS(1)
 
@@ -804,9 +811,22 @@ class Program:
             glUniform1f(uniform, 1)
             uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.specularIntensity")
             glUniform1f(uniform, 1)
-            #glUniform1f(programId, "directionalLight.ambientIntensity", float(directionalLightEnabled)*0.1f);
-            #glUniform1f(programId, "directionalLight.diffuseIntensity", float(directionalLightEnabled)*0.1f);
-            #glUniform1f(programId, "directionalLight.specularIntensity", float(directionalLightEnabled)*1.0f);
+            uniform = glGetUniformLocation(shader_texture.get_shader(), "camera_position")
+            glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
+
+            shader_common.bind()
+            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.direction")
+            glUniform3f(uniform, 0, -0.707107, 0.707107)
+            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.color")
+            glUniform3f(uniform, 1.0, 1.0, 1.0)
+            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.ambientIntensity")
+            glUniform1f(uniform, 0.5)
+            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.diffuseIntensity")
+            glUniform1f(uniform, 0)
+            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.specularIntensity")
+            glUniform1f(uniform, 1)
+            uniform = glGetUniformLocation(shader_texture.get_shader(), "camera_position")
+            glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
 
             user_function()
 
