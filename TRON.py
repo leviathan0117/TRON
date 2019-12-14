@@ -407,12 +407,14 @@ class DirectionalLight:
         self.position = None
         self.direction = None
         self.color = None
+        self.brightness = None
 
-    def describe(self, position, color):
+    def describe(self, position, color, brightness):
         self.position = position
         max_value = max(abs(i) for i in self.position)
         self.direction = [-i / max_value for i in self.position]
         self.color = color
+        self.brightness = brightness
 
     def update_shade_map(self):
         global camera_projection_matrix, camera_view_matrix
@@ -465,11 +467,11 @@ class DirectionalLight:
         uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].color")
         glUniform3f(uniform, self.color[0], self.color[1], self.color[2])
         uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].ambientIntensity")
-        glUniform1f(uniform, 0.1)
+        glUniform1f(uniform, self.brightness[0])
         uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].diffuseIntensity")
-        glUniform1f(uniform, 1)
+        glUniform1f(uniform, self.brightness[1])
         uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].specularIntensity")
-        glUniform1f(uniform, 3)
+        glUniform1f(uniform, self.brightness[2])
         uniform = glGetUniformLocation(shader.get_shader(), "camera_position")
         glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
 
@@ -643,10 +645,8 @@ class Object:
                     glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "tex_sampler"), 0)
                     glActiveTexture(GL_TEXTURE0)
                     self.materials[self.subobjects[i].parts[j].material_id].texture.bind()
-                    glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "shadowMap[0]"), 1)
-                    glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "shadowMap[1]"), 2)
-
                     for k in range(len(light_sources)):
+                        glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "shadowMap[" + str(k) + "]"), k + 1)
                         glBindTextures(k + 1, k + 2, light_sources[k].depth_map)
 
                     glBindVertexArray(self.vaos[i][j])
