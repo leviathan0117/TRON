@@ -1,4 +1,4 @@
-# TRON (v0.0.3-complex objects)
+# TRON (v0.0.4-lights & shadows)
 A simple Python 3D graphics library based on OpenGL. Created to allow easier development of small Python 3D programs. 
 
 Source code available at: https://github.com/leviathan117/TRON
@@ -6,9 +6,8 @@ Source code available at: https://github.com/leviathan117/TRON
 Source code for a legacy OpenGL-based version (current v0.1.0): https://github.com/leviathan117/TRON_Legacy
 
 ## What's new (from previous version):
-* .mtl file support
-* transparency support
-* object subdivision support 
+* Shadows
+* Direct light (up to 10 light sources)
 
 ## Version warning
 Until version 1.0.0 - code structure, names and function implementations may change chaotically. Documentation may not be present.
