@@ -9,9 +9,13 @@ import math
 from PIL import Image
 
 path_to_res_folder = "./"
-aspect_ratio = 1
+aspect_ratio = None
 camera_projection_matrix = None
 camera_view_matrix = None
+window_width = None
+window_height = None
+# Objects that are to be drawn:
+objects_array = []
 
 
 class Camera:
@@ -192,8 +196,8 @@ class Shader:
         glUseProgram(0)
 
 
-shader_texture = Shader()
-shader_common = Shader()
+texture_shader = Shader()
+common_shader = Shader()
 
 
 class Texture:
@@ -348,6 +352,57 @@ class TexturedCubes:
         self.triangles = numpy.array(self.triangles, dtype=numpy.uint32)
 
 
+class DirectionalLight:
+    def __init__(self):
+        self.quad_vertices = [-1.0, 1.0, 0.0, 0.0, 1.0,
+                              -1.0, -1.0, 0.0, 0.0, 0.0,
+                              1.0, 1.0, 0.0, 1.0, 1.0,
+                              1.0, -1.0, 0.0, 1.0, 0.0]
+
+        self.quad_vertices = numpy.array(self.quad_vertices, dtype=numpy.float32)
+        self.quadVAO = glGenVertexArrays(1)
+        self.quadVBO = glGenBuffers(1)
+        glBindVertexArray(self.quadVAO)
+        glBindBuffer(GL_ARRAY_BUFFER, self.quadVBO)
+        glBufferData(GL_ARRAY_BUFFER, self.quad_vertices.itemsize * len(self.quad_vertices), self.quad_vertices,
+                     GL_STATIC_DRAW)
+        # position - 0
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.quad_vertices.itemsize * 5, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+        # textures - 1
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.quad_vertices.itemsize * 5, ctypes.c_void_p(12))
+        glEnableVertexAttribArray(1)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
+
+        self.depth_map_fbo = glGenFramebuffers(1)
+        self.shadow_map_width = 8192 * 4
+        self.shadow_map_height = self.shadow_map_width
+        self.depth_map = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, self.depth_map)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                     self.shadow_map_width, self.shadow_map_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, None)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+
+        glBindFramebuffer(GL_FRAMEBUFFER, self.depth_map_fbo)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, self.depth_map, 0)
+        glDrawBuffer(GL_NONE)
+        glReadBuffer(GL_NONE)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+        self.depth_shader = Shader()
+        self.depth_shader.compile_shader("res/shaders/shadow_fill_vertex_shader.glsl",
+                                         "res/shaders/shadow_fill_fragment_shader.glsl")
+        self.draw_shader = Shader()
+        self.draw_shader.compile_shader("res/shaders/shadow_draw_vertex_shader.glsl",
+                                        "res/shaders/shadow_draw_fragment_shader.glsl")
+    def active(self):
+        pass
+
+
 class Object:
     def __init__(self, texture_dir_location, object_file_location):
         self.materials = []
@@ -445,23 +500,163 @@ class Object:
                     glEnableVertexAttribArray(5)
                     glVertexAttribDivisor(5, 1)
 
+        self.quad_vertices = [-1.0, 1.0, 0.0, 0.0, 1.0,
+                         -1.0, -1.0, 0.0, 0.0, 0.0,
+                         1.0, 1.0, 0.0, 1.0, 1.0,
+                         1.0, -1.0, 0.0, 1.0, 0.0]
+
+        self.quad_vertices = numpy.array(self.quad_vertices, dtype=numpy.float32)
+        self.quadVAO = glGenVertexArrays(1)
+        self.quadVBO = glGenBuffers(1)
+        glBindVertexArray(self.quadVAO)
+        glBindBuffer(GL_ARRAY_BUFFER, self.quadVBO)
+        glBufferData(GL_ARRAY_BUFFER, self.quad_vertices.itemsize * len(self.quad_vertices), self.quad_vertices, GL_STATIC_DRAW)
+        # position - 0
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.quad_vertices.itemsize * 5, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+        # textures - 1
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.quad_vertices.itemsize * 5, ctypes.c_void_p(12))
+        glEnableVertexAttribArray(1)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
+
+        self.depth_map_fbo = glGenFramebuffers(1)
+        self.shadow_map_width = 8192 * 4
+        self.shadow_map_height = self.shadow_map_width
+        self.depth_map = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, self.depth_map)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                     self.shadow_map_width, self.shadow_map_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, None)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+
+        glBindFramebuffer(GL_FRAMEBUFFER, self.depth_map_fbo)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, self.depth_map, 0)
+        glDrawBuffer(GL_NONE)
+        glReadBuffer(GL_NONE)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+        self.depth_shader = Shader()
+        self.depth_shader.compile_shader("res/shaders/shadow_fill_vertex_shader.glsl",
+                                    "res/shaders/shadow_fill_fragment_shader.glsl")
+        self.draw_shader = Shader()
+        self.draw_shader.compile_shader("res/shaders/shadow_draw_vertex_shader.glsl",
+                                   "res/shaders/shadow_draw_fragment_shader.glsl")
+
         glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
         glBindVertexArray(0)
         glUseProgram(0)
 
+    def shade_draw(self, rotation_array, instance_array, resize_array):
+        global camera_projection_matrix, camera_view_matrix
+        global window_width, window_height
+
+        # Matrices:
+        near_plane = 1.0
+        far_plane = 100.0
+
+        self.shadow_projection_matrix = \
+            pyrr.matrix44.create_orthogonal_projection_matrix(-20.0, 20.0, -20.0, 20.0, near_plane, far_plane)
+        self.shadow_view_matrix = pyrr.matrix44.create_look_at([-10.0, 10.0, 0.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+
+        # shadow draw:
+        self.depth_shader.bind()
+        glUniformMatrix4fv(self.depth_shader.view_uniform_location, 1, GL_FALSE, self.shadow_view_matrix)
+        glUniformMatrix4fv(self.depth_shader.projection_uniform_location, 1, GL_FALSE, self.shadow_projection_matrix)
+
+        glViewport(0, 0, self.shadow_map_width, self.shadow_map_height)
+        glBindFramebuffer(GL_FRAMEBUFFER, self.depth_map_fbo)
+        glClear(GL_DEPTH_BUFFER_BIT)
+
+        for i in range(self.count_subobjects):
+            for j in range(self.subobjects[i].count_parts):
+                glBindVertexArray(self.vaos[i][j])
+                glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
+                glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
+                             rotation_array, GL_DYNAMIC_DRAW)
+                glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbos[i][j])
+                glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array),
+                             instance_array, GL_DYNAMIC_DRAW)
+                glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbos[i][j])
+                glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array),
+                             resize_array, GL_DYNAMIC_DRAW)
+
+                count_objects = int(len(rotation_array) / 3)
+                glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        glViewport(0, 0, window_width, window_height)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        self.draw_shader.bind()
+        glBindTexture(GL_TEXTURE_2D, self.depth_map)
+        glBindVertexArray(self.quadVAO)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        glBindVertexArray(0)
+
     def draw(self, rotation_array, instance_array, resize_array):
-        global aspect_ratio, camera_projection_matrix, camera_view_matrix
-        global shader_texture, shader_common
+        global objects_array
+        objects_array.append(self)
+
+        global camera_projection_matrix, camera_view_matrix
+        global texture_shader, common_shader
+        global window_width, window_height
+
+        glViewport(0, 0, window_width, window_height)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        texture_shader.bind()
+
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "view_light")
+        glUniformMatrix4fv(uniform, 1, GL_FALSE, self.shadow_view_matrix)
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "projection_light")
+        glUniformMatrix4fv(uniform, 1, GL_FALSE, self.shadow_projection_matrix)
+        # #############################################################
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "directionalLight.direction")
+        glUniform3f(uniform, 1, -1, 0)
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "directionalLight.color")
+        glUniform3f(uniform, 1.0, 1.0, 1.0)
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "directionalLight.ambientIntensity")
+        glUniform1f(uniform, 0.1)
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "directionalLight.diffuseIntensity")
+        glUniform1f(uniform, 1)
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "directionalLight.specularIntensity")
+        glUniform1f(uniform, 1)
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "camera_position")
+        glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
+
+        common_shader.bind()
+        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.direction")
+        glUniform3f(uniform, 1, -1, 0)
+        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.color")
+        glUniform3f(uniform, 1.0, 1.0, 1.0)
+        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.ambientIntensity")
+        glUniform1f(uniform, 0.5)
+        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.diffuseIntensity")
+        glUniform1f(uniform, 0)
+        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.specularIntensity")
+        glUniform1f(uniform, 1)
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "camera_position")
+        glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
 
         for i in range(self.count_subobjects):
             for j in range(self.subobjects[i].count_parts):
                 if self.materials[self.subobjects[i].parts[j].material_id].texture is not None:
-                    shader_texture.bind()
-                    glUniformMatrix4fv(shader_texture.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
-                    glUniformMatrix4fv(shader_texture.projection_uniform_location, 1, GL_FALSE,
+                    texture_shader.bind()
+                    glUniformMatrix4fv(texture_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+                    glUniformMatrix4fv(texture_shader.projection_uniform_location, 1, GL_FALSE,
                                        camera_projection_matrix)
+
+                    glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "tex_sampler"), 0)
+                    glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "shadowMap"), 1)
+                    glActiveTexture(GL_TEXTURE0)
                     self.materials[self.subobjects[i].parts[j].material_id].texture.bind()
+                    glActiveTexture(GL_TEXTURE1)
+                    glBindTexture(GL_TEXTURE_2D, self.depth_map)
+
                     glBindVertexArray(self.vaos[i][j])
                     glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
                     glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
@@ -485,10 +680,9 @@ class Object:
         for i in range(self.count_subobjects):
             for j in range(self.subobjects[i].count_parts):
                 if self.materials[self.subobjects[i].parts[j].material_id].texture is None:
-                    shader_common.bind()
-                    glUniformMatrix4fv(shader_common.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
-                    glUniformMatrix4fv(shader_common.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
-
+                    common_shader.bind()
+                    glUniformMatrix4fv(common_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+                    glUniformMatrix4fv(common_shader.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
                     glBindVertexArray(self.vaos[i][j])
                     glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
                     glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
@@ -509,8 +703,6 @@ class Object:
                         glDrawArraysInstanced(GL_LINES, 0, len(self.subobjects[i].parts[j].points), count_objects)
                     else:
                         glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
-
-        # sys.exit(0)
 
     def load_data(self, texture_dir_location, object_file_location):
         object_file_location = path_to_res_folder + object_file_location
@@ -745,8 +937,6 @@ class Program:
 
         # Declaring variables
         self.window = None
-        self.window_height = None
-        self.window_width = None
         self.window_name = None
 
         self.background_color_r = 0.0
@@ -755,10 +945,11 @@ class Program:
         self.background_color_alpha = 1.0
 
     def create_window(self, **kwargs):
-        self.window_width = kwargs.get('width', 800)
-        self.window_height = kwargs.get('height', 600)
+        global window_width, window_height
+        window_width = kwargs.get('width', 800)
+        window_height = kwargs.get('height', 600)
         self.window_name = kwargs.get('name', "My OpenGL window")
-        self.window = glfw.create_window(self.window_width, self.window_height, self.window_name, None, None)
+        self.window = glfw.create_window(window_width, window_height, self.window_name, None, None)
 
         glfw.set_window_size_callback(self.window, window_resize)
         glfw.set_key_callback(self.window, key_callback)
@@ -774,14 +965,15 @@ class Program:
 
         cam.turn_camera(0, 0)
 
-        global shader_texture, shader_common
-        shader_texture.compile_shader("res/shaders/textured_object_vertex_shader.glsl", "res/shaders/textured_object_fragment_shader.glsl")
-        shader_common.compile_shader("res/shaders/common_object_vertex_shader.glsl", "res/shaders/common_object_fragment_shader.glsl")
+        global texture_shader, common_shader
+        texture_shader.compile_shader("res/shaders/textured_object_vertex_shader.glsl", "res/shaders/textured_object_fragment_shader.glsl")
+        common_shader.compile_shader("res/shaders/common_object_vertex_shader.glsl", "res/shaders/common_object_fragment_shader.glsl")
 
     def window_loop(self, user_function):
         global camera_view_matrix
-        global shader_texture, shader_common
+        global texture_shader, common_shader
         global cam
+        global objects_array
 
         fps = FPS(1)
 
@@ -798,37 +990,9 @@ class Program:
 
             camera_view_matrix = cam.get_view_matrix()
 
-
-            #glm::vec3 direction = glm::normalize(glm::vec3(0.0f, -1.0f, 1.0f));
-            shader_texture.bind()
-            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.direction")
-            glUniform3f(uniform, 0, -0.707107, 0.707107)
-            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.color")
-            glUniform3f(uniform, 1.0, 1.0, 1.0)
-            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.ambientIntensity")
-            glUniform1f(uniform, 0.1)
-            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.diffuseIntensity")
-            glUniform1f(uniform, 1)
-            uniform = glGetUniformLocation(shader_texture.get_shader(), "directionalLight.specularIntensity")
-            glUniform1f(uniform, 1)
-            uniform = glGetUniformLocation(shader_texture.get_shader(), "camera_position")
-            glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
-
-            shader_common.bind()
-            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.direction")
-            glUniform3f(uniform, 0, -0.707107, 0.707107)
-            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.color")
-            glUniform3f(uniform, 1.0, 1.0, 1.0)
-            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.ambientIntensity")
-            glUniform1f(uniform, 0.5)
-            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.diffuseIntensity")
-            glUniform1f(uniform, 0)
-            uniform = glGetUniformLocation(shader_common.get_shader(), "directionalLight.specularIntensity")
-            glUniform1f(uniform, 1)
-            uniform = glGetUniformLocation(shader_texture.get_shader(), "camera_position")
-            glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
-
+            objects_array = []
             user_function()
+            print(objects_array)
 
             glfw.swap_buffers(self.window)
 

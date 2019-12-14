@@ -1,6 +1,6 @@
-#version 330
+#version 330 core
 in layout(location = 0) vec3 position;
-in layout(location = 1) vec2 texture_cords;
+in layout(location = 1) vec4 color_in;
 in layout(location = 2) vec3 normals;
 in layout(location = 3) vec3 offset;
 in layout(location = 4) vec3 rotation;
@@ -8,13 +8,7 @@ in layout(location = 5) float resize;
 
 uniform mat4 view;
 uniform mat4 projection;
-uniform mat4 view_light;
-uniform mat4 projection_light;
-
-out vec2 textures;
-out vec3 fragment_normal;
-out vec3 fragment_pos;
-out vec4 FragPosLightSpace;
+uniform mat4 model;
 
 mat3 getRotationMatrix(float pitch_angle, float yaw_angle, float roll_angle)
 {
@@ -50,10 +44,4 @@ void main()
     vec3 object_pos = vec3(position.x * resize, position.y * resize, position.z * resize) * mr;
     vec3 world_pos = vec3(object_pos.x + offset.x, object_pos.y + offset.y, object_pos.z + offset.z);
     gl_Position =  projection * view * vec4(world_pos, 1.0f);
-    FragPosLightSpace = projection_light * view_light * vec4(world_pos, 1.0);
-
-    fragment_normal = normals * mr;
-    fragment_pos = world_pos;
-
-    textures = vec2(texture_cords.x, 1 - texture_cords.y);
 }
