@@ -54,7 +54,6 @@ void main()
     vec3 object_pos = vec3(position.x * resize, position.y * resize, position.z * resize) * mr;
     vec3 world_pos = vec3(object_pos.x + offset.x, object_pos.y + offset.y, object_pos.z + offset.z);
     gl_Position =  projection * view * vec4(world_pos, 1.0f);
-    //FragPosLightSpace
     for (int i = 0; i < MAX_LIGHTS; i++)
     {
         FragPosLightSpace[i] = projection_light[i] * view_light[i] * vec4(world_pos, 1.0);

@@ -408,13 +408,15 @@ class DirectionalLight:
         self.direction = None
         self.color = None
         self.brightness = None
+        self.brightness_for_materials = None
 
-    def describe(self, position, color, brightness):
+    def describe(self, position, color, brightness, brightness_for_materials):
         self.position = position
         max_value = max(abs(i) for i in self.position)
         self.direction = [-i / max_value for i in self.position]
         self.color = color
         self.brightness = brightness
+        self.brightness_for_materials = brightness_for_materials
 
     def update_shade_map(self):
         global camera_projection_matrix, camera_view_matrix
@@ -455,7 +457,7 @@ class DirectionalLight:
         global light_sources_array
         light_sources_array.append(self)
 
-    def set_shader_uniforms(self, shader, self_id):
+    def set_shader_uniforms(self, shader, self_id, type):
         uniform = glGetUniformLocation(shader.get_shader(), "view_light[" + str(self_id) + "]")
         glUniformMatrix4fv(uniform, 1, GL_FALSE, self.shadow_view_matrix)
         uniform = glGetUniformLocation(shader.get_shader(), "projection_light[" + str(self_id) + "]")
@@ -466,12 +468,26 @@ class DirectionalLight:
         glUniform3f(uniform, self.direction[0], self.direction[1], self.direction[2])
         uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].color")
         glUniform3f(uniform, self.color[0], self.color[1], self.color[2])
-        uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].ambientIntensity")
-        glUniform1f(uniform, self.brightness[0])
-        uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].diffuseIntensity")
-        glUniform1f(uniform, self.brightness[1])
-        uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].specularIntensity")
-        glUniform1f(uniform, self.brightness[2])
+        if type:
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].ambientIntensity")
+            glUniform1f(uniform, self.brightness[0])
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].diffuseIntensity")
+            glUniform1f(uniform, self.brightness[1])
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].specularIntensity")
+            glUniform1f(uniform, self.brightness[2])
+        else:
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].ambientIntensity")
+            glUniform1f(uniform, self.brightness_for_materials[0])
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].diffuseIntensity")
+            glUniform1f(uniform, self.brightness_for_materials[1])
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].specularIntensity")
+            glUniform1f(uniform, self.brightness_for_materials[2])
         uniform = glGetUniformLocation(shader.get_shader(), "camera_position")
         glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
 
@@ -618,21 +634,13 @@ class Object:
         uniform = glGetUniformLocation(texture_shader.get_shader(), "num_active_lights")
         glUniform1i(uniform, len(light_sources))
         for i in range(len(light_sources)):
-            light_sources[i].set_shader_uniforms(texture_shader, i)
+            light_sources[i].set_shader_uniforms(texture_shader, i, 1)
 
         common_shader.bind()
-        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.direction")
-        glUniform3f(uniform, 1, -1, 0)
-        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.color")
-        glUniform3f(uniform, 1.0, 1.0, 1.0)
-        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.ambientIntensity")
-        glUniform1f(uniform, 0.5)
-        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.diffuseIntensity")
-        glUniform1f(uniform, 0)
-        uniform = glGetUniformLocation(common_shader.get_shader(), "directionalLight.specularIntensity")
-        glUniform1f(uniform, 1)
-        uniform = glGetUniformLocation(texture_shader.get_shader(), "camera_position")
-        glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
+        uniform = glGetUniformLocation(texture_shader.get_shader(), "num_active_lights")
+        glUniform1i(uniform, len(light_sources))
+        for i in range(len(light_sources)):
+            light_sources[i].set_shader_uniforms(texture_shader, i, 0)
 
         for i in range(self.count_subobjects):
             for j in range(self.subobjects[i].count_parts):

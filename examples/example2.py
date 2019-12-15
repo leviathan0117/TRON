@@ -20,10 +20,10 @@ light_source = TRON.DirectionalLight()
 light_source2 = TRON.DirectionalLight()
 light_source3 = TRON.DirectionalLight()
 light_source4 = TRON.DirectionalLight()
-light_source.describe([-10.0, 10, -7.5], [1, 1, 1], [0.1, 0.3, 1])
-light_source2.describe([-10.0, 10, -2.5], [1, 1, 1], [0.1, 0.3, 1])
-light_source3.describe([-10.0, 10, 2.5], [1, 1, 1], [0.1, 0.3, 1])
-light_source4.describe([-10.0, 10, 7.5], [1, 1, 1], [0.1, 0.3, 1])
+light_source.describe([-10.0, 10, -7.5], [1, 1, 1], [0.1, 0.3, 1], [0.5, 0, 1])
+light_source2.describe([-10.0, 10, -2.5], [1, 1, 1], [0.1, 0.3, 1], [0.5, 0, 1])
+light_source3.describe([-10.0, 10, 2.5], [1, 1, 1], [0.1, 0.3, 1], [0.5, 0, 1])
+light_source4.describe([-10.0, 10, 7.5], [1, 1, 1], [0.1, 0.3, 1], [0.5, 0, 1])
 
 
 def user_function():

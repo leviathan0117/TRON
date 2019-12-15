@@ -57,7 +57,6 @@ vec4 calcDirectionalLight(int light_index, vec3 normal, vec3 fragmentToCamera, D
     // check whether current frag pos is in shadow
     float bias = 0.005;
     float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
-
     return ambientColor + (1.0 - shadow) * (diffuseColor + specularColor);
 }
 
@@ -67,13 +66,19 @@ void main()
     normal = normalize(fragment_normal); // normal should be corrected after interpolation
     vec3 fragmentToCamera = normalize(camera_position - fragment_pos);
 
-    vec4 directColor = vec4(0, 0, 0, 0);
-    for (int i = 0; i < MAX_LIGHTS; i++)
+    vec4 linearColor = texture(tex_sampler, textures);
+    if (num_active_lights != 0)
     {
-        directColor += calcDirectionalLight(i, normal, fragmentToCamera, directionalLight[i]);
+        vec4 directColor = vec4(0, 0, 0, 0);
+        for (int i = 0; i < MAX_LIGHTS; i++)
+        {
+            directColor += calcDirectionalLight(i, normal, fragmentToCamera, directionalLight[i]);
+        }
+        {
+            directColor /= num_active_lights;
+        }
+        linearColor *= (vec4(materialEmission, 1) + directColor);
     }
-    directColor /= num_active_lights;
-    vec4 linearColor = texture(tex_sampler, textures) * (vec4(materialEmission, 1) + directColor);
 
     vec4 gamma = vec4(vec3(1.0/2.2), 1);
     color = pow(linearColor, gamma); // gamma-corrected color

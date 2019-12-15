@@ -1,4 +1,7 @@
 #version 330
+
+const int MAX_LIGHTS = 10;
+
 in layout(location = 0) vec3 position;
 in layout(location = 1) vec4 color_in;
 in layout(location = 2) vec3 normals;
@@ -8,10 +11,14 @@ in layout(location = 5) float resize;
 
 uniform mat4 view;
 uniform mat4 projection;
+uniform mat4 view_light[MAX_LIGHTS];
+uniform mat4 projection_light[MAX_LIGHTS];
 
 out vec4 color;
 out vec3 fragment_normal;
 out vec3 fragment_pos;
+
+out vec4 FragPosLightSpace[MAX_LIGHTS];
 
 mat3 getRotationMatrix(float pitch_angle, float yaw_angle, float roll_angle)
 {
@@ -47,6 +54,10 @@ void main()
     vec3 object_pos = vec3(position.x * resize, position.y * resize, position.z * resize) * mr;
     vec3 world_pos = vec3(object_pos.x + offset.x, object_pos.y + offset.y, object_pos.z + offset.z);
     gl_Position =  projection * view * vec4(world_pos, 1.0f);
+    for (int i = 0; i < MAX_LIGHTS; i++)
+    {
+        FragPosLightSpace[i] = projection_light[i] * view_light[i] * vec4(world_pos, 1.0);
+    }
 
     fragment_normal = normals * mr;
     fragment_pos = world_pos;
