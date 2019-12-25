@@ -107,7 +107,7 @@ def window_resize(window, width, height):
 
     aspect_ratio = width / height
 
-    camera_projection_matrix = pyrr.matrix44.create_perspective_projection_matrix(45.0, aspect_ratio, 0.1, 100.0)
+    camera_projection_matrix = pyrr.matrix44.create_perspective_projection_matrix(60.0, aspect_ratio, 0.001, 1000.0)
 
 
 cam = Camera()
@@ -642,20 +642,20 @@ class Object:
         for i in range(len(light_sources)):
             light_sources[i].set_shader_uniforms(texture_shader, i, 0)
 
+        texture_shader.bind()
+        glUniformMatrix4fv(texture_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(texture_shader.projection_uniform_location, 1, GL_FALSE,
+                           camera_projection_matrix)
+
+        glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "tex_sampler"), 0)
+        for k in range(len(light_sources)):
+            glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "shadowMap[" + str(k) + "]"), k + 1)
+            glBindTextures(k + 1, k + 2, light_sources[k].depth_map)
         for i in range(self.count_subobjects):
             for j in range(self.subobjects[i].count_parts):
                 if self.materials[self.subobjects[i].parts[j].material_id].texture is not None:
-                    texture_shader.bind()
-                    glUniformMatrix4fv(texture_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
-                    glUniformMatrix4fv(texture_shader.projection_uniform_location, 1, GL_FALSE,
-                                       camera_projection_matrix)
-
-                    glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "tex_sampler"), 0)
                     glActiveTexture(GL_TEXTURE0)
                     self.materials[self.subobjects[i].parts[j].material_id].texture.bind()
-                    for k in range(len(light_sources)):
-                        glUniform1i(glGetUniformLocation(texture_shader.get_shader(), "shadowMap[" + str(k) + "]"), k + 1)
-                        glBindTextures(k + 1, k + 2, light_sources[k].depth_map)
 
                     glBindVertexArray(self.vaos[i][j])
                     glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
@@ -677,12 +677,12 @@ class Object:
                         glDrawArraysInstanced(GL_LINES, 0, len(self.subobjects[i].parts[j].points), count_objects)
                     else:
                         glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
+        common_shader.bind()
+        glUniformMatrix4fv(common_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(common_shader.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
         for i in range(self.count_subobjects):
             for j in range(self.subobjects[i].count_parts):
                 if self.materials[self.subobjects[i].parts[j].material_id].texture is None:
-                    common_shader.bind()
-                    glUniformMatrix4fv(common_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
-                    glUniformMatrix4fv(common_shader.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
                     glBindVertexArray(self.vaos[i][j])
                     glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbos[i][j])
                     glBufferData(GL_ARRAY_BUFFER, self.rotation_array.itemsize * len(self.rotation_array),
