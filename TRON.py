@@ -16,7 +16,6 @@ aspect_ratio = None
 camera_projection_matrix = None
 camera_view_matrix = None
 
-
 class Camera:
     def __init__(self):
         self.camera_pos = pyrr.Vector3([0.0, 0.0, 0.0])
@@ -109,6 +108,7 @@ def window_resize(window, width, height):
 
 
 cam = Camera()
+camera_view_matrix = cam.get_view_matrix()
 keys = [False] * 1024
 lastX, lastY = 960, 540
 first_mouse = True
@@ -200,13 +200,17 @@ class TronContext:
 
         self.windows = []
 
+        self.objects = []
+        self.lights = []
+
         self.shader_texture = TronShader()
         self.common_shader = TronShader()
+
+        self.current_window = None
 
     def activate(self):
         self.load_shaders()
 
-    @private
     def load_shaders(self):
         self.shader_texture.compile_shader("res/shaders/textured_object_vertex_shader.glsl",
                                            "res/shaders/textured_object_fragment_shader.glsl")
@@ -236,6 +240,8 @@ class TronMaterial:
         self.map_ka = ""
         self.map_bump = ""
         self.map_d = ""
+
+        self.texture_id = None
 
 
 class TronTexture:
@@ -272,8 +278,86 @@ class TronTexture:
 
 class TronPart:
     def __init__(self):
-        self.texture_id = None
         self.material_id = None
+        self.points = []
+
+        self.vao = glGenVertexArrays(1)
+        self.points_vbo = glGenBuffers(1)
+        self.instance_vbo = glGenBuffers(1)
+        self.rotation_vbo = glGenBuffers(1)
+        self.resize_vbo = glGenBuffers(1)
+
+    def fill_buffers(self):
+        global main_context
+
+        glBindVertexArray(self.vao)
+        if main_context.materials[self.material_id].texture_id is not None:
+            glBindBuffer(GL_ARRAY_BUFFER, self.points_vbo)
+            glBufferData(GL_ARRAY_BUFFER,
+                         self.points.itemsize * len(self.points),
+                         self.points, GL_STATIC_DRAW)
+            # position - 0
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.points.itemsize * 8,
+                                  ctypes.c_void_p(0))
+            glEnableVertexAttribArray(0)
+            # textures - 1
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.points.itemsize * 8,
+                                  ctypes.c_void_p(3 * 4))
+            glEnableVertexAttribArray(1)
+            # normals - 2
+            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, self.points.itemsize * 8,
+                                  ctypes.c_void_p((3 + 2) * 4))
+            glEnableVertexAttribArray(2)
+        else:
+            glBindBuffer(GL_ARRAY_BUFFER, self.points_vbo)
+            glBufferData(GL_ARRAY_BUFFER,
+                         self.points.itemsize * len(self.points),
+                         self.points, GL_STATIC_DRAW)
+            # position - 0
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.points.itemsize * 10,
+                                  ctypes.c_void_p(0))
+            glEnableVertexAttribArray(0)
+            # color - 1
+            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, self.points.itemsize * 10,
+                                  ctypes.c_void_p(3 * 4))
+            glEnableVertexAttribArray(1)
+            # normals - 2
+            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, self.points.itemsize * 10,
+                                  ctypes.c_void_p((3 + 4) * 4))
+            glEnableVertexAttribArray(2)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
+        # instance - 3
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(3)
+        glVertexAttribDivisor(3, 1)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
+        # rotation - 4
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(4)
+        glVertexAttribDivisor(4, 1)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbo)
+        # resize - 5
+        glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(5)
+        glVertexAttribDivisor(5, 1)
+
+        # TODO: make this real:
+        instance_array = numpy.array([10, -1, 0], numpy.float32)
+        resize_array = numpy.array([1], numpy.float32)
+        rotation_array = numpy.array([3.14 / 2, 0, -3.14 / 2], numpy.float32)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
+        glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
+                     rotation_array, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
+        glBufferData(GL_ARRAY_BUFFER, instance_array.itemsize * len(instance_array),
+                     instance_array, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbo)
+        glBufferData(GL_ARRAY_BUFFER, resize_array.itemsize * len(resize_array),
+                     resize_array, GL_DYNAMIC_DRAW)
 
 
 class TronSubobject:
@@ -282,10 +366,16 @@ class TronSubobject:
         self.delta_rotation = [0.0, 0.0, 0.0]
         self.delta_size = 1.0
         self.parts = []
+        self.name = None
+        self.count_parts = 0
 
 
 class TronStructure:
     def __init__(self):
+        global main_context
+
+        self.id = len(main_context.structures)
+
         self.subobjects = []
 
 
@@ -349,21 +439,19 @@ class TronFileHandler:
             if mat.map_kd != "":
                 main_context.textures.append(TronTexture())
                 main_context.textures[-1].load(texture_directory_location + mat.map_kd)
+                mat.texture_id = main_context.textures[-1].id
 
     def load_obj(self, file_location):
         global main_context
 
         main_context.structures.append(TronStructure())
+        current_object = main_context.structures[-1]
 
         keep_alive_counter = 0
 
         tmp_vertex_coordinates = []
         tmp_texture_coordinates = []
         tmp_normal_coordinates = []
-
-        tmp_vertex_index = []
-        tmp_texture_index = []
-        tmp_normal_index = []
 
         state = 0
         current_material_name = 0
@@ -396,96 +484,299 @@ class TronFileHandler:
                 current_material_name = data[1]
                 state = 1
             if data[0] == "o":
-                self.subobjects.append(SubObject())
-                self.subobjects[-1].name = data[1]
+                current_object.subobjects.append(TronSubobject())
+                current_object.subobjects[-1].name = data[1]
                 state = 1
 
             # Subpart handling:
             if data[0] == "f" and state:
-                self.subobjects[-1].parts.append(SubObjectPart())
-                for i in range(len(self.materials)):
-                    if self.materials[i].name == current_material_name:
-                        self.subobjects[-1].parts[-1].material_id = i
-                        current_material = self.materials[i]
+                current_object.subobjects[-1].parts.append(TronPart())
+                for i in range(len(main_context.materials)):
+                    if main_context.materials[i].name == current_material_name:
+                        current_object.subobjects[-1].parts[-1].material_id = i
+                        current_material = main_context.materials[i]
                 state = 0
             if data[0] == "f":
-                if current_material.texture is not None:
+                if current_material.map_kd is not "":
                     indexes = data[1].split("/")
-                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     indexes = data[2].split("/")
-                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     indexes = data[3].split("/")
-                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     if len(data) == 5:
                         indexes = data[3].split("/")
-                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[4].split("/")
-                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[1].split("/")
-                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                 # This is when we don't need vertices
                 else:
                     color = [current_material.kd[0], current_material.kd[1], current_material.kd[2], current_material.d]
                     indexes = data[1].split("/")
-                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(color)
-                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(color)
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     indexes = data[2].split("/")
-                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(color)
-                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(color)
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     indexes = data[3].split("/")
-                    self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                    self.subobjects[-1].parts[-1].points.extend(color)
-                    self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                    current_object.subobjects[-1].parts[-1].points.extend(color)
+                    current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     if len(data) == 5:
                         indexes = data[3].split("/")
-                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(color)
-                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(color)
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[4].split("/")
-                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(color)
-                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(color)
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[1].split("/")
-                        self.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        self.subobjects[-1].parts[-1].points.extend(color)
-                        self.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
-        for sub in self.subobjects:
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(color)
+                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+
+        for sub in current_object.subobjects:
             sub.count_parts = len(sub.parts)
             for part in sub.parts:
                 part.points = numpy.array(part.points, dtype=numpy.float32).flatten()
 
+        for sub in current_object.subobjects:
+            for part in sub.parts:
+                part.fill_buffers()
+
+        return current_object.id
 
 class TronObject:
-    def __init__(self):
+    def __init__(self, structure_id):
+        global main_context
+
         self.hided = 0
         self.position = None
         self.structure = None
+        self.structure_id = structure_id
 
-    @protected
+        self.rotation_array = None
+        self.instance_array = None
+        self.resize_array = None
+
+        main_context.objects.append(self)
+
     def shade_draw(self):
-        pass
+        global main_context
 
-    @protected
+        struct = main_context.structures[self.structure_id]
+
+        for i in struct.subobjects:
+            for j in i.parts:
+                glBindVertexArray(j.vao)
+                glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
+                glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
+                glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
+                count_objects = 1
+                glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
+
     def real_draw(self):
-        pass
+        global camera_projection_matrix, camera_view_matrix
+        global main_context
+
+        glViewport(0, 0, main_context.windows[0].window_width, main_context.windows[0].window_height)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        main_context.common_shader.bind()
+        uniform = glGetUniformLocation(main_context.common_shader.get_shader(), "num_active_lights")
+        glUniform1i(uniform, len(main_context.lights))
+        for i in range(len(main_context.lights)):
+            main_context.lights[i].set_shader_uniforms(main_context.common_shader, i, 0)
+
+        main_context.common_shader.bind()
+        glUniformMatrix4fv(main_context.common_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(main_context.common_shader.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
+        struct = main_context.structures[self.structure_id]
+        for i in struct.subobjects:
+            for j in i.parts:
+                #if self.materials[self.subobjects[i].parts[j].material_id].texture is None:
+                if True:
+                    glBindVertexArray(j.vao)
+                    glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
+                    glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
+                    glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
+
+                    #count_objects = int(len(self.rotation_array) / 3)
+                    count_objects = 1
+                    glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
+
+    def draw(self, rotation_array, instance_array, resize_array):
+        self.rotation_array = rotation_array
+        self.instance_array = instance_array
+        self.resize_array = resize_array
+
+class TronDirectionalLight:
+    def __init__(self):
+        global main_context
+
+        self.id = len(main_context.lights)
+        main_context.lights.append(self)
+
+        self.hided = 0
+
+        self.quad_vertices = [-1.0, 1.0, 0.0, 0.0, 1.0,
+                              -1.0, -1.0, 0.0, 0.0, 0.0,
+                              1.0, 1.0, 0.0, 1.0, 1.0,
+                              1.0, -1.0, 0.0, 1.0, 0.0]
+
+        self.quad_vertices = numpy.array(self.quad_vertices, dtype=numpy.float32)
+        self.quadVAO = glGenVertexArrays(1)
+        self.quadVBO = glGenBuffers(1)
+        glBindVertexArray(self.quadVAO)
+        glBindBuffer(GL_ARRAY_BUFFER, self.quadVBO)
+        glBufferData(GL_ARRAY_BUFFER, self.quad_vertices.itemsize * len(self.quad_vertices), self.quad_vertices,
+                     GL_STATIC_DRAW)
+        # position - 0
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, self.quad_vertices.itemsize * 5, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+        # textures - 1
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.quad_vertices.itemsize * 5, ctypes.c_void_p(12))
+        glEnableVertexAttribArray(1)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
+
+        self.depth_map_fbo = glGenFramebuffers(1)
+        self.shadow_map_width = 2048
+        self.shadow_map_height = self.shadow_map_width
+        self.depth_map = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, self.depth_map)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                     self.shadow_map_width, self.shadow_map_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, None)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+
+        glBindFramebuffer(GL_FRAMEBUFFER, self.depth_map_fbo)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, self.depth_map, 0)
+        glDrawBuffer(GL_NONE)
+        glReadBuffer(GL_NONE)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+        self.depth_shader = TronShader()
+        self.depth_shader.compile_shader("res/shaders/shadow_fill_vertex_shader.glsl",
+                                         "res/shaders/shadow_fill_fragment_shader.glsl")
+        self.draw_shader = TronShader()
+        self.draw_shader.compile_shader("res/shaders/shadow_draw_vertex_shader.glsl",
+                                        "res/shaders/shadow_draw_fragment_shader.glsl")
+
+        self.shadow_projection_matrix = None
+        self.shadow_view_matrix = None
+
+        self.position = None
+        self.direction = None
+        self.color = None
+        self.brightness = None
+        self.brightness_for_materials = None
+
+    def describe(self, position, color, brightness, brightness_for_materials):
+        self.position = position
+        max_value = max(abs(i) for i in self.position)
+        self.direction = [-i / max_value for i in self.position]
+        self.color = color
+        self.brightness = brightness
+        self.brightness_for_materials = brightness_for_materials
+
+    def update_shade_map(self):
+        global camera_projection_matrix, camera_view_matrix
+
+        global main_context
+        # Matrices:
+        near_plane = 1.0
+        far_plane = 100.0
+
+        self.shadow_projection_matrix = \
+            pyrr.matrix44.create_orthogonal_projection_matrix(-20.0, 20.0, -20.0, 20.0, near_plane, far_plane)
+        self.shadow_view_matrix = pyrr.matrix44.create_look_at(self.position, [0.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+
+        # shadow draw:
+        self.depth_shader.bind()
+        glUniformMatrix4fv(self.depth_shader.view_uniform_location, 1, GL_FALSE, self.shadow_view_matrix)
+        glUniformMatrix4fv(self.depth_shader.projection_uniform_location, 1, GL_FALSE, self.shadow_projection_matrix)
+
+        glViewport(0, 0, self.shadow_map_width, self.shadow_map_height)
+        glBindFramebuffer(GL_FRAMEBUFFER, self.depth_map_fbo)
+        glClear(GL_DEPTH_BUFFER_BIT)
+
+        for item in main_context.objects:
+            if item.hided == 0:
+                item.shade_draw()
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        window_width = main_context.windows[main_context.current_window].window_width
+        window_height = main_context.windows[main_context.current_window].window_height
+        glViewport(0, 0, window_width, window_height)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        # DEBUG:
+        self.draw_shader.bind()
+        glBindTexture(GL_TEXTURE_2D, self.depth_map)
+        glBindVertexArray(self.quadVAO)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        glBindVertexArray(0)
+
+    def set_shader_uniforms(self, shader, self_id, type):
+        uniform = glGetUniformLocation(shader.get_shader(), "view_light[" + str(self_id) + "]")
+        glUniformMatrix4fv(uniform, 1, GL_FALSE, self.shadow_view_matrix)
+        uniform = glGetUniformLocation(shader.get_shader(), "projection_light[" + str(self_id) + "]")
+        glUniformMatrix4fv(uniform, 1, GL_FALSE, self.shadow_projection_matrix)
+        # #############################################################
+        uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].direction")
+
+        glUniform3f(uniform, self.direction[0], self.direction[1], self.direction[2])
+        uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].color")
+        glUniform3f(uniform, self.color[0], self.color[1], self.color[2])
+        if type:
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].ambientIntensity")
+            glUniform1f(uniform, self.brightness[0])
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].diffuseIntensity")
+            glUniform1f(uniform, self.brightness[1])
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].specularIntensity")
+            glUniform1f(uniform, self.brightness[2])
+        else:
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].ambientIntensity")
+            glUniform1f(uniform, self.brightness_for_materials[0])
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].diffuseIntensity")
+            glUniform1f(uniform, self.brightness_for_materials[1])
+            uniform = glGetUniformLocation(shader.get_shader(),
+                                           "directionalLight[" + str(self_id) + "].specularIntensity")
+            glUniform1f(uniform, self.brightness_for_materials[2])
+        uniform = glGetUniformLocation(shader.get_shader(), "camera_position")
+        glUniform3f(uniform, cam.camera_pos[0], cam.camera_pos[1], cam.camera_pos[2])
 
 
 class TronWindow:
     def __init__(self, **kwargs):
+        global main_context
+
+        self.id = len(main_context.windows)
         # OpenGL ID:
         self.opengl_id = None
         self.window_name = None
@@ -498,6 +789,8 @@ class TronWindow:
         self.background_color_alpha = 1.0
 
         self.create(**kwargs)
+
+        main_context.load_shaders()
 
     def create(self, **kwargs):
         self.window_width = kwargs.get('width', 800)
@@ -517,15 +810,32 @@ class TronWindow:
 
         self.activate()
 
+        window_resize(0, self.window_width, self.window_height)
+        glClearColor(self.background_color_r, self.background_color_g,
+                     self.background_color_b, self.background_color_alpha)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glfw.swap_buffers(self.opengl_id)
+
     def activate(self):
         glfw.make_context_current(self.opengl_id)
 
     def draw(self):
+        global main_context
+
+        main_context.current_window = self.id
+
+        self.activate()
         glfw.poll_events()
         glClearColor(self.background_color_r, self.background_color_g,
                      self.background_color_b, self.background_color_alpha)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        for i in main_context.lights:
+            if i.hided == 0:
+                i.update_shade_map()
+
+        #for i in main_context.objects:
+        #    i.real_draw()
 
         glfw.swap_buffers(self.opengl_id)
 
