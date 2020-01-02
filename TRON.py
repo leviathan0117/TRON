@@ -345,6 +345,7 @@ class TronPart:
         glVertexAttribDivisor(5, 1)
 
         # TODO: make this real:
+        glBindVertexArray(self.vao)
         instance_array = numpy.array([10, -1, 0], numpy.float32)
         resize_array = numpy.array([1], numpy.float32)
         rotation_array = numpy.array([3.14 / 2, 0, -3.14 / 2], numpy.float32)
@@ -586,15 +587,18 @@ class TronObject:
         for i in struct.subobjects:
             for j in i.parts:
                 glBindVertexArray(j.vao)
-                glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
-                glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
-                glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
+                #glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
+                #glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
+                #glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
                 count_objects = 1
                 glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
 
     def real_draw(self):
         global camera_projection_matrix, camera_view_matrix
         global main_context
+        global cam
+
+        camera_view_matrix = cam.get_view_matrix()
 
         glViewport(0, 0, main_context.windows[0].window_width, main_context.windows[0].window_height)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -602,6 +606,7 @@ class TronObject:
         main_context.common_shader.bind()
         uniform = glGetUniformLocation(main_context.common_shader.get_shader(), "num_active_lights")
         glUniform1i(uniform, len(main_context.lights))
+        #glUniform1i(uniform, 0)
         for i in range(len(main_context.lights)):
             main_context.lights[i].set_shader_uniforms(main_context.common_shader, i, 0)
 
@@ -611,8 +616,8 @@ class TronObject:
         struct = main_context.structures[self.structure_id]
         for i in struct.subobjects:
             for j in i.parts:
+                if main_context.materials[j.material_id].texture_id is None:
                 #if self.materials[self.subobjects[i].parts[j].material_id].texture is None:
-                if True:
                     glBindVertexArray(j.vao)
                     glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
                     glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
@@ -700,8 +705,6 @@ class TronDirectionalLight:
         self.brightness_for_materials = brightness_for_materials
 
     def update_shade_map(self):
-        global camera_projection_matrix, camera_view_matrix
-
         global main_context
         # Matrices:
         near_plane = 1.0
@@ -803,6 +806,9 @@ class TronWindow:
         glfw.set_cursor_pos_callback(self.opengl_id, mouse_callback)
         glfw.set_input_mode(self.opengl_id, glfw.CURSOR, glfw.CURSOR_DISABLED)
 
+        global cam
+        cam.turn_camera(0, 0)
+
         if not self.opengl_id:
             print("(!) TRON FATAL ERROR: Failed to create a window")
             glfw.terminate()
@@ -834,8 +840,9 @@ class TronWindow:
             if i.hided == 0:
                 i.update_shade_map()
 
-        #for i in main_context.objects:
-        #    i.real_draw()
+        for i in main_context.objects:
+            if i.hided == 0:
+                i.real_draw()
 
         glfw.swap_buffers(self.opengl_id)
 
@@ -857,6 +864,10 @@ class TronProgram:
 
     def main_loop(self):
         global main_context
+
+        glEnable(GL_DEPTH_TEST)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glEnable(GL_BLEND)
 
         while True:
             for window in main_context.windows:
