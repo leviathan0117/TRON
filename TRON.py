@@ -16,6 +16,7 @@ aspect_ratio = None
 camera_projection_matrix = None
 camera_view_matrix = None
 
+
 class Camera:
     def __init__(self):
         self.camera_pos = pyrr.Vector3([0.0, 0.0, 0.0])
@@ -204,7 +205,7 @@ class TronContext:
         self.lights = []
 
         self.shader_texture = TronShader()
-        self.common_shader = TronShader()
+        self.shader_common = TronShader()
 
         self.current_window = None
 
@@ -214,7 +215,7 @@ class TronContext:
     def load_shaders(self):
         self.shader_texture.compile_shader("res/shaders/textured_object_vertex_shader.glsl",
                                            "res/shaders/textured_object_fragment_shader.glsl")
-        self.common_shader.compile_shader("res/shaders/common_object_vertex_shader.glsl",
+        self.shader_common.compile_shader("res/shaders/common_object_vertex_shader.glsl",
                                           "res/shaders/common_object_fragment_shader.glsl")
 
 
@@ -248,14 +249,13 @@ class TronTexture:
     def __init__(self):
         global main_context
 
-        self.id = len(main_context.materials)
-        self.opengl_id = None
+        self.id = len(main_context.textures)
+        self.opengl_id = glGenTextures(1)
         self.name = None
 
     def load(self, file_location):
         self.name = file_location
-
-        self.opengl_id = glGenTextures(1)
+        print(self.name)
         glBindTexture(GL_TEXTURE_2D, self.id)
         # Set the texture wrapping parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
@@ -564,6 +564,7 @@ class TronFileHandler:
 
         return current_object.id
 
+
 class TronObject:
     def __init__(self, structure_id):
         global main_context
@@ -597,40 +598,63 @@ class TronObject:
         global camera_projection_matrix, camera_view_matrix
         global main_context
         global cam
-
         camera_view_matrix = cam.get_view_matrix()
 
-        glViewport(0, 0, main_context.windows[0].window_width, main_context.windows[0].window_height)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-        main_context.common_shader.bind()
-        uniform = glGetUniformLocation(main_context.common_shader.get_shader(), "num_active_lights")
+        main_context.shader_texture.bind()
+        uniform = glGetUniformLocation(main_context.shader_texture.get_shader(), "num_active_lights")
         glUniform1i(uniform, len(main_context.lights))
-        #glUniform1i(uniform, 0)
         for i in range(len(main_context.lights)):
-            main_context.lights[i].set_shader_uniforms(main_context.common_shader, i, 0)
+            main_context.lights[i].set_shader_uniforms(main_context.shader_texture, i, 1)
+        glUniformMatrix4fv(main_context.shader_texture.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(main_context.shader_texture.projection_uniform_location, 1, GL_FALSE,
+                           camera_projection_matrix)
+        glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(), "tex_sampler"), 0)
+        for k in range(len(main_context.lights)):
+            glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(), "shadowMap[" + str(k) + "]"), k + 1)
+            glBindTextures(k + 1, k + 2, main_context.lights[k].depth_map)
 
-        main_context.common_shader.bind()
-        glUniformMatrix4fv(main_context.common_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
-        glUniformMatrix4fv(main_context.common_shader.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
         struct = main_context.structures[self.structure_id]
+
+        for i in struct.subobjects:
+            for j in i.parts:
+                if main_context.materials[j.material_id].texture_id is not None:
+                    main_context.shader_texture.bind()
+                    glActiveTexture(GL_TEXTURE0)
+                    #glBindTexture(GL_TEXTURE_2D, main_context.textures[main_context.materials[j.material_id].texture_id].id)
+                    main_context.textures[main_context.materials[j.material_id].texture_id].bind()
+                    glBindVertexArray(j.vao)
+                    # glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
+                    # glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
+                    # glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
+                    count_objects = 1
+                    glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
+
+        main_context.shader_common.bind()
+        uniform = glGetUniformLocation(main_context.shader_common.get_shader(), "num_active_lights")
+        glUniform1i(uniform, len(main_context.lights))
+        for i in range(len(main_context.lights)):
+            main_context.lights[i].set_shader_uniforms(main_context.shader_common, i, 0)
+
+        glUniformMatrix4fv(main_context.shader_common.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(main_context.shader_common.projection_uniform_location, 1, GL_FALSE,
+                           camera_projection_matrix)
         for i in struct.subobjects:
             for j in i.parts:
                 if main_context.materials[j.material_id].texture_id is None:
-                #if self.materials[self.subobjects[i].parts[j].material_id].texture is None:
+                    main_context.shader_common.bind()
                     glBindVertexArray(j.vao)
-                    glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
-                    glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
-                    glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
-
-                    #count_objects = int(len(self.rotation_array) / 3)
+                    #glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
+                    #glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
+                    #glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
                     count_objects = 1
                     glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
+
 
     def draw(self, rotation_array, instance_array, resize_array):
         self.rotation_array = rotation_array
         self.instance_array = instance_array
         self.resize_array = resize_array
+
 
 class TronDirectionalLight:
     def __init__(self):
@@ -663,7 +687,7 @@ class TronDirectionalLight:
         glBindVertexArray(0)
 
         self.depth_map_fbo = glGenFramebuffers(1)
-        self.shadow_map_width = 2048
+        self.shadow_map_width = 4096
         self.shadow_map_height = self.shadow_map_width
         self.depth_map = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.depth_map)
@@ -827,10 +851,13 @@ class TronWindow:
 
     def draw(self):
         global main_context
+        global cam, camera_view_matrix
 
         main_context.current_window = self.id
 
         self.activate()
+        do_movement()
+        camera_view_matrix = cam.get_view_matrix()
         glfw.poll_events()
         glClearColor(self.background_color_r, self.background_color_g,
                      self.background_color_b, self.background_color_alpha)
@@ -839,6 +866,9 @@ class TronWindow:
         for i in main_context.lights:
             if i.hided == 0:
                 i.update_shade_map()
+
+        glViewport(0, 0, self.window_width, self.window_height)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         for i in main_context.objects:
             if i.hided == 0:
@@ -1067,7 +1097,7 @@ class Shader:
 
 
 texture_shader = Shader()
-common_shader = Shader()
+shader_common = Shader()
 
 
 class Texture:
@@ -1493,7 +1523,7 @@ class Object:
 
     def real_draw(self, light_sources):
         global camera_projection_matrix, camera_view_matrix
-        global texture_shader, common_shader
+        global texture_shader, shader_common
         global window_width, window_height
 
         glViewport(0, 0, window_width, window_height)
@@ -1505,7 +1535,7 @@ class Object:
         for i in range(len(light_sources)):
             light_sources[i].set_shader_uniforms(texture_shader, i, 1)
 
-        common_shader.bind()
+        shader_common.bind()
         uniform = glGetUniformLocation(texture_shader.get_shader(), "num_active_lights")
         glUniform1i(uniform, len(light_sources))
         for i in range(len(light_sources)):
@@ -1546,9 +1576,9 @@ class Object:
                         glDrawArraysInstanced(GL_LINES, 0, len(self.subobjects[i].parts[j].points), count_objects)
                     else:
                         glDrawArraysInstanced(GL_TRIANGLES, 0, len(self.subobjects[i].parts[j].points), count_objects)
-        common_shader.bind()
-        glUniformMatrix4fv(common_shader.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
-        glUniformMatrix4fv(common_shader.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
+        shader_common.bind()
+        glUniformMatrix4fv(shader_common.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(shader_common.projection_uniform_location, 1, GL_FALSE, camera_projection_matrix)
         for i in range(self.count_subobjects):
             for j in range(self.subobjects[i].count_parts):
                 if self.materials[self.subobjects[i].parts[j].material_id].texture is None:
@@ -1834,13 +1864,13 @@ class Program:
 
         cam.turn_camera(0, 0)
 
-        global texture_shader, common_shader
+        global texture_shader, shader_common
         texture_shader.compile_shader("res/shaders/textured_object_vertex_shader.glsl", "res/shaders/textured_object_fragment_shader.glsl")
-        common_shader.compile_shader("res/shaders/common_object_vertex_shader.glsl", "res/shaders/common_object_fragment_shader.glsl")
+        shader_common.compile_shader("res/shaders/common_object_vertex_shader.glsl", "res/shaders/common_object_fragment_shader.glsl")
 
     def window_loop(self, user_function):
         global camera_view_matrix
-        global texture_shader, common_shader
+        global texture_shader, shader_common
         global cam
         global objects_array, light_sources_array
 
