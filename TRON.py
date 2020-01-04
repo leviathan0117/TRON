@@ -256,7 +256,7 @@ class TronTexture:
     def load(self, file_location):
         self.name = file_location
         print(self.name)
-        glBindTexture(GL_TEXTURE_2D, self.id)
+        glBindTexture(GL_TEXTURE_2D, self.opengl_id)
         # Set the texture wrapping parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
@@ -344,11 +344,11 @@ class TronPart:
         glEnableVertexAttribArray(5)
         glVertexAttribDivisor(5, 1)
 
-        # TODO: make this real:
+        # TODO: make this changeable:
         glBindVertexArray(self.vao)
-        instance_array = numpy.array([10, -1, 0], numpy.float32)
+        instance_array = numpy.array([0, 0, 0], numpy.float32)
         resize_array = numpy.array([1], numpy.float32)
-        rotation_array = numpy.array([3.14 / 2, 0, -3.14 / 2], numpy.float32)
+        rotation_array = numpy.array([0, 0, 0], numpy.float32)
 
         glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
         glBufferData(GL_ARRAY_BUFFER, rotation_array.itemsize * len(rotation_array),
@@ -513,17 +513,26 @@ class TronFileHandler:
                     current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     if len(data) == 5:
                         indexes = data[3].split("/")
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_texture_coordinates[int(indexes[1]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[4].split("/")
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_texture_coordinates[int(indexes[1]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[1].split("/")
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_texture_coordinates[int(indexes[1]) - 1])
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_texture_coordinates[int(indexes[1]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_normal_coordinates[int(indexes[2]) - 1])
                 # This is when we don't need vertices
                 else:
                     color = [current_material.kd[0], current_material.kd[1], current_material.kd[2], current_material.d]
@@ -541,17 +550,23 @@ class TronFileHandler:
                     current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
                     if len(data) == 5:
                         indexes = data[3].split("/")
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_vertex_coordinates[int(indexes[0]) - 1])
                         current_object.subobjects[-1].parts[-1].points.extend(color)
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[4].split("/")
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_vertex_coordinates[int(indexes[0]) - 1])
                         current_object.subobjects[-1].parts[-1].points.extend(color)
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_normal_coordinates[int(indexes[2]) - 1])
                         indexes = data[1].split("/")
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_vertex_coordinates[int(indexes[0]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_vertex_coordinates[int(indexes[0]) - 1])
                         current_object.subobjects[-1].parts[-1].points.extend(color)
-                        current_object.subobjects[-1].parts[-1].points.extend(tmp_normal_coordinates[int(indexes[2]) - 1])
+                        current_object.subobjects[-1].parts[-1].points.extend(
+                            tmp_normal_coordinates[int(indexes[2]) - 1])
 
         for sub in current_object.subobjects:
             sub.count_parts = len(sub.parts)
@@ -574,11 +589,58 @@ class TronObject:
         self.structure = None
         self.structure_id = structure_id
 
-        self.rotation_array = None
-        self.instance_array = None
-        self.resize_array = None
+        self.rotation_array = numpy.array([0, 0, 0], numpy.float32)
+        self.instance_array = numpy.array([0, 0, 0], numpy.float32)
+        self.resize_array = numpy.array([1], numpy.float32)
+
+        self.rotation_array_previous = numpy.array([0, 0, 0], numpy.float32)
+        self.instance_array_previous = numpy.array([0, 0, 0], numpy.float32)
+        self.resize_array_previous = numpy.array([0], numpy.float32)
+
+        self.instance_vbo = glGenBuffers(1)
+        self.rotation_vbo = glGenBuffers(1)
+        self.resize_vbo = glGenBuffers(1)
+
+        self.update_buffers()
 
         main_context.objects.append(self)
+
+    def describe_buffers(self):
+        glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
+        # instance - 6
+        glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(6)
+        glVertexAttribDivisor(6, 1)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
+        # rotation - 7
+        glVertexAttribPointer(7, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(7)
+        glVertexAttribDivisor(7, 1)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbo)
+        # resize - 8
+        glVertexAttribPointer(8, 1, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(8)
+        glVertexAttribDivisor(8, 1)
+
+    def update_buffers(self):
+        if not numpy.array_equal(self.rotation_array, self.rotation_array_previous) or \
+                not numpy.array_equal(self.instance_array, self.instance_array_previous) or \
+                not numpy.array_equal(self.resize_array, self.resize_array_previous):
+            glBindBuffer(GL_ARRAY_BUFFER, self.rotation_vbo)
+            glBufferData(GL_ARRAY_BUFFER, self.rotation_array.itemsize * len(self.rotation_array),
+                         self.rotation_array, GL_DYNAMIC_DRAW)
+            glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
+            glBufferData(GL_ARRAY_BUFFER, self.instance_array.itemsize * len(self.instance_array),
+                         self.instance_array, GL_DYNAMIC_DRAW)
+            glBindBuffer(GL_ARRAY_BUFFER, self.resize_vbo)
+            glBufferData(GL_ARRAY_BUFFER, self.resize_array.itemsize * len(self.resize_array),
+                         self.resize_array, GL_DYNAMIC_DRAW)
+
+            self.rotation_array_previous = self.rotation_array
+            self.instance_array_previous = self.instance_array
+            self.resize_array_previous = self.resize_array
 
     def shade_draw(self):
         global main_context
@@ -588,9 +650,8 @@ class TronObject:
         for i in struct.subobjects:
             for j in i.parts:
                 glBindVertexArray(j.vao)
-                #glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
-                #glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
-                #glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
+                self.describe_buffers()
+                self.update_buffers()
                 count_objects = 1
                 glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
 
@@ -610,7 +671,8 @@ class TronObject:
                            camera_projection_matrix)
         glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(), "tex_sampler"), 0)
         for k in range(len(main_context.lights)):
-            glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(), "shadowMap[" + str(k) + "]"), k + 1)
+            glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(),
+                        "shadowMap[" + str(k) + "]"), k + 1)
             glBindTextures(k + 1, k + 2, main_context.lights[k].depth_map)
 
         struct = main_context.structures[self.structure_id]
@@ -620,12 +682,10 @@ class TronObject:
                 if main_context.materials[j.material_id].texture_id is not None:
                     main_context.shader_texture.bind()
                     glActiveTexture(GL_TEXTURE0)
-                    #glBindTexture(GL_TEXTURE_2D, main_context.textures[main_context.materials[j.material_id].texture_id].id)
                     main_context.textures[main_context.materials[j.material_id].texture_id].bind()
                     glBindVertexArray(j.vao)
-                    # glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
-                    # glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
-                    # glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
+                    self.describe_buffers()
+                    self.update_buffers()
                     count_objects = 1
                     glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
 
@@ -643,12 +703,10 @@ class TronObject:
                 if main_context.materials[j.material_id].texture_id is None:
                     main_context.shader_common.bind()
                     glBindVertexArray(j.vao)
-                    #glBindBuffer(GL_ARRAY_BUFFER, j.rotation_vbo)
-                    #glBindBuffer(GL_ARRAY_BUFFER, j.instance_vbo)
-                    #glBindBuffer(GL_ARRAY_BUFFER, j.resize_vbo)
+                    self.describe_buffers()
+                    self.update_buffers()
                     count_objects = 1
                     glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
-
 
     def draw(self, rotation_array, instance_array, resize_array):
         self.rotation_array = rotation_array
@@ -764,7 +822,7 @@ class TronDirectionalLight:
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
         glBindVertexArray(0)
 
-    def set_shader_uniforms(self, shader, self_id, type):
+    def set_shader_uniforms(self, shader, self_id, material_type):
         uniform = glGetUniformLocation(shader.get_shader(), "view_light[" + str(self_id) + "]")
         glUniformMatrix4fv(uniform, 1, GL_FALSE, self.shadow_view_matrix)
         uniform = glGetUniformLocation(shader.get_shader(), "projection_light[" + str(self_id) + "]")
@@ -775,7 +833,7 @@ class TronDirectionalLight:
         glUniform3f(uniform, self.direction[0], self.direction[1], self.direction[2])
         uniform = glGetUniformLocation(shader.get_shader(), "directionalLight[" + str(self_id) + "].color")
         glUniform3f(uniform, self.color[0], self.color[1], self.color[2])
-        if type:
+        if material_type:
             uniform = glGetUniformLocation(shader.get_shader(),
                                            "directionalLight[" + str(self_id) + "].ambientIntensity")
             glUniform1f(uniform, self.brightness[0])
@@ -819,6 +877,13 @@ class TronWindow:
 
         main_context.load_shaders()
 
+        self.time_pr = time.time_ns()
+
+        def sample_function():
+            pass
+
+        self.user_function = sample_function
+
     def create(self, **kwargs):
         self.window_width = kwargs.get('width', 800)
         self.window_height = kwargs.get('height', 600)
@@ -853,9 +918,14 @@ class TronWindow:
         global main_context
         global cam, camera_view_matrix
 
+        self.time_pr = time.time_ns()
+
         main_context.current_window = self.id
 
         self.activate()
+
+        self.user_function()
+
         do_movement()
         camera_view_matrix = cam.get_view_matrix()
         glfw.poll_events()
@@ -879,6 +949,8 @@ class TronWindow:
         # TODO: make this not a exit, but just closing the window:
         if glfw.window_should_close(self.opengl_id):
             sys.exit(0)
+
+        #print("TRON info: loop took ", (time.time_ns() - self.time_pr) / 10**6, " ms")
 
 
 class TronProgram:
