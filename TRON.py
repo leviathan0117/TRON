@@ -207,14 +207,16 @@ class TronContext:
 
         self.current_window = None
 
+        self.path_to_res_folder = ""
+
     def activate(self):
         self.load_shaders()
 
     def load_shaders(self):
-        self.shader_texture.compile_shader("res/shaders/textured_object_vertex_shader.glsl",
-                                           "res/shaders/textured_object_fragment_shader.glsl")
-        self.shader_common.compile_shader("res/shaders/common_object_vertex_shader.glsl",
-                                          "res/shaders/common_object_fragment_shader.glsl")
+        self.shader_texture.compile_shader(self.path_to_res_folder + "res/shaders/textured_object_vertex_shader.glsl",
+                                           self.path_to_res_folder + "res/shaders/textured_object_fragment_shader.glsl")
+        self.shader_common.compile_shader(self.path_to_res_folder + "res/shaders/common_object_vertex_shader.glsl",
+                                          self.path_to_res_folder + "res/shaders/common_object_fragment_shader.glsl")
 
 
 main_context = TronContext()
@@ -782,11 +784,11 @@ class TronDirectionalLight:
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
         self.depth_shader = TronShader()
-        self.depth_shader.compile_shader("res/shaders/shadow_fill_vertex_shader.glsl",
-                                         "res/shaders/shadow_fill_fragment_shader.glsl")
+        self.depth_shader.compile_shader(main_context.path_to_res_folder + "res/shaders/shadow_fill_vertex_shader.glsl",
+                                        main_context.path_to_res_folder + "res/shaders/shadow_fill_fragment_shader.glsl")
         self.draw_shader = TronShader()
-        self.draw_shader.compile_shader("res/shaders/shadow_draw_vertex_shader.glsl",
-                                        "res/shaders/shadow_draw_fragment_shader.glsl")
+        self.draw_shader.compile_shader(main_context.path_to_res_folder + "res/shaders/shadow_draw_vertex_shader.glsl",
+                                        main_context.path_to_res_folder + "res/shaders/shadow_draw_fragment_shader.glsl")
 
         self.shadow_projection_matrix = None
         self.shadow_view_matrix = None

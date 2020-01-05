@@ -3,47 +3,45 @@ import numpy
 
 sys.path.insert(1, '../')
 import TRON
-TRON.path_to_res_folder = "../"
 
-my_window = TRON.Program()
-my_window.create_window(name="Example 1", width=1920, height=1080)
+TRON.main_context.path_to_res_folder = "../"
 
-cubes = TRON.TexturedCubes()
+bla = TRON.TronProgram()
+bla.new_window(name="Example 1", width=1280, height=720)
 
-angle = 0
-cube_array_size = 20
+fh = TRON.TronFileHandler()
+fh.load_mtl("../res/objects/uh60.mtl", "../res/textures/uh60/")
+s = fh.load_obj("../res/objects/uh60.obj")
+helicopter = TRON.TronObject(s)
+helicopter.rotation_array = numpy.array([3.14 / 2, 0, -3.14 / 2], numpy.float32)
+helicopter.instance_array = numpy.array([10, -1, 0], numpy.float32)
 
-instance_array = numpy.zeros((cube_array_size ** 3, 3))
-for x in range(0, cube_array_size, 1):
-    for y in range(0, cube_array_size, 1):
-        for z in range(0, cube_array_size, 1):
-            instance_array[x * cube_array_size ** 2 + y * cube_array_size + z][0] = z * 2
-            instance_array[x * cube_array_size ** 2 + y * cube_array_size + z][1] = y * 2
-            instance_array[x * cube_array_size ** 2 + y * cube_array_size + z][2] = x * 2
-instance_array = numpy.array(instance_array, numpy.float32).flatten()
+l = TRON.TronDirectionalLight()
+l.describe([-10.0, 10, -7.5], [1, 1, 1], [0.1, 1, 1], [0.5, 0, 1])
+l2 = TRON.TronDirectionalLight()
+l2.describe([-10.0, 10, 2.5], [1, 1, 1], [0.1, 1, 1], [0.5, 0, 1])
 
-resize_array = numpy.zeros(cube_array_size ** 3, numpy.float32)
-for x in range(0, cube_array_size, 1):
-    for y in range(0, cube_array_size, 1):
-        for z in range(0, cube_array_size, 1):
-            resize_array[x * cube_array_size ** 2 + y * cube_array_size + z] = 0.1 + (x + y + z) / cube_array_size / 3 * 0.4
+angle, speed, acceleration = 0, 0, 0
 
+fps = TRON.FPS(1)
+
+for i in range(len(TRON.main_context.structures[s].subobjects)):
+    print(TRON.main_context.structures[s].subobjects[i].name, i)
 
 def user_function():
-    global angle, cubes
+    global angle, s, speed, acceleration, fps
 
-    angle += 0.01
+    fps.update_and_print()
 
-    rotation_array = numpy.zeros((cube_array_size ** 3, 3))
-    for x in range(0, cube_array_size, 1):
-        for y in range(0, cube_array_size, 1):
-            for z in range(0, cube_array_size, 1):
-                rotation_array[x * cube_array_size ** 2 + y * cube_array_size + z][0] = x * angle
-                rotation_array[x * cube_array_size ** 2 + y * cube_array_size + z][1] = y * angle
-                rotation_array[x * cube_array_size ** 2 + y * cube_array_size + z][2] = z * angle
-    rotation_array = numpy.array(rotation_array, numpy.float32).flatten()
+    rotation_array = numpy.array([0, angle, 0], numpy.float32)
+    for i in TRON.main_context.structures[s].subobjects[8].parts:
+        i.rotation_array = rotation_array
 
-    cubes.draw(rotation_array, instance_array, resize_array)
+    angle += speed
+    if speed < 0.1:
+        speed += acceleration
+        acceleration += 0.0000001
 
+TRON.main_context.windows[0].user_function = user_function
 
-my_window.window_loop(user_function)
+bla.main_loop()
