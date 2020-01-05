@@ -201,6 +201,7 @@ class TronContext:
 
         self.objects = []
         self.lights = []
+        self.num_active_lights = 0
 
         self.shader_texture = TronShader()
         self.shader_common = TronShader()
@@ -661,12 +662,13 @@ class TronObject:
 
         for i in struct.subobjects:
             for j in i.parts:
-                glBindVertexArray(j.vao)
-                j.update_buffers()
-                self.describe_buffers()
-                self.update_buffers()
-                count_objects = 1
-                glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
+                if main_context.materials[j.material_id].texture_id is not None:
+                    glBindVertexArray(j.vao)
+                    j.update_buffers()
+                    self.describe_buffers()
+                    self.update_buffers()
+                    count_objects = 1
+                    glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
 
     def real_draw(self):
         global camera_projection_matrix, camera_view_matrix
@@ -676,20 +678,27 @@ class TronObject:
 
         main_context.shader_texture.bind()
         uniform = glGetUniformLocation(main_context.shader_texture.get_shader(), "num_active_lights")
-        glUniform1i(uniform, len(main_context.lights))
+        glUniform1i(uniform, main_context.num_active_lights)
+        count_added = 0
         for i in range(len(main_context.lights)):
-            main_context.lights[i].set_shader_uniforms(main_context.shader_texture, i, 1)
+            if main_context.lights[i].hided == 0:
+                main_context.lights[i].set_shader_uniforms(main_context.shader_texture, count_added, 1)
+                count_added += 1
         glUniformMatrix4fv(main_context.shader_texture.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
         glUniformMatrix4fv(main_context.shader_texture.projection_uniform_location, 1, GL_FALSE,
                            camera_projection_matrix)
         glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(), "tex_sampler"), 0)
+        count_added = 0
         for k in range(len(main_context.lights)):
-            glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(),
-                        "shadowMap[" + str(k) + "]"), k + 1)
+            if main_context.lights[k].hided == 0:
+                glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(),
+                            "shadowMap[" + str(count_added) + "]"), count_added + 1)
+                count_added += 1
         textures_array = []
         for i in main_context.lights:
-            textures_array.append(i.depth_map)
-        glBindTextures(1, len(main_context.lights), textures_array)
+            if i.hided == 0:
+                textures_array.append(i.depth_map)
+        glBindTextures(1, main_context.num_active_lights, textures_array)
 
         struct = main_context.structures[self.structure_id]
 
@@ -710,9 +719,26 @@ class TronObject:
 
         main_context.shader_common.bind()
         uniform = glGetUniformLocation(main_context.shader_common.get_shader(), "num_active_lights")
-        glUniform1i(uniform, len(main_context.lights))
+        glUniform1i(uniform, main_context.num_active_lights)
+        count_added = 0
         for i in range(len(main_context.lights)):
-            main_context.lights[i].set_shader_uniforms(main_context.shader_common, i, 0)
+            if main_context.lights[i].hided == 0:
+                main_context.lights[i].set_shader_uniforms(main_context.shader_common, count_added, 0)
+                count_added += 1
+        glUniformMatrix4fv(main_context.shader_common.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
+        glUniformMatrix4fv(main_context.shader_common.projection_uniform_location, 1, GL_FALSE,
+                           camera_projection_matrix)
+        count_added = 0
+        for k in range(len(main_context.lights)):
+            if main_context.lights[k].hided == 0:
+                glUniform1i(glGetUniformLocation(main_context.shader_common.get_shader(),
+                                                 "shadowMap[" + str(count_added) + "]"), count_added)
+                count_added += 1
+        textures_array = []
+        for i in main_context.lights:
+            if i.hided == 0:
+                textures_array.append(i.depth_map)
+        glBindTextures(0, main_context.num_active_lights, textures_array)
 
         glUniformMatrix4fv(main_context.shader_common.view_uniform_location, 1, GL_FALSE, camera_view_matrix)
         glUniformMatrix4fv(main_context.shader_common.projection_uniform_location, 1, GL_FALSE,
@@ -956,9 +982,13 @@ class TronWindow:
                      self.background_color_b, self.background_color_alpha)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+        #glCullFace(GL_FRONT)
+        main_context.num_active_lights = 0
         for i in main_context.lights:
             if i.hided == 0:
                 i.update_shade_map()
+                main_context.num_active_lights += 1
+        #glCullFace(GL_BACK)
 
         glViewport(0, 0, self.window_width, self.window_height)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)

@@ -8,7 +8,6 @@ in vec3 fragment_pos;
 in vec4 FragPosLightSpace[MAX_LIGHTS];
 
 out vec4 out_color;
-uniform sampler2D tex_sampler;
 uniform sampler2D shadowMap[MAX_LIGHTS];
 
 uniform int num_active_lights;
@@ -58,7 +57,6 @@ vec4 calcDirectionalLight(int light_index, vec3 normal, vec3 fragmentToCamera, D
 
 void main()
 {
-    //color = texture(tex_sampler, textures);
     vec3 normal = normalize(fragment_normal); // normal should be corrected after interpolation
     vec3 fragmentToCamera = normalize(camera_position - fragment_pos);
 
