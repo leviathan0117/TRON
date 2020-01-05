@@ -673,7 +673,10 @@ class TronObject:
         for k in range(len(main_context.lights)):
             glUniform1i(glGetUniformLocation(main_context.shader_texture.get_shader(),
                         "shadowMap[" + str(k) + "]"), k + 1)
-            glBindTextures(k + 1, k + 2, main_context.lights[k].depth_map)
+        textures_array = []
+        for i in main_context.lights:
+            textures_array.append(i.depth_map)
+        glBindTextures(1, len(main_context.lights), textures_array)
 
         struct = main_context.structures[self.structure_id]
 
