@@ -81,7 +81,8 @@ class TronDirectionalLight:
 
         self.shadow_projection_matrix = \
             pyrr.matrix44.create_orthogonal_projection_matrix(-20.0, 20.0, -20.0, 20.0, near_plane, far_plane)
-        self.shadow_view_matrix = pyrr.matrix44.create_look_at(self.position, [0.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+        # TODO: fix the 'looking directly down' problem
+        self.shadow_view_matrix = pyrr.matrix44.create_look_at(self.position, [0, 0, 0.000001], [0.0, 1.0, 0.0])
 
         # shadow draw:
         self.depth_shader.bind()

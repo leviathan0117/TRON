@@ -12,6 +12,7 @@ import light_handling
 import keyboard_handling
 import camera_handling
 import window_handling
+import mouse_handling
 
 from file_handling import TronFileHandler
 from object_handling import TronObject
@@ -27,6 +28,8 @@ class TronProgram:
 
     def new_window(self, camera_id, **kwargs):
         context.main_context.windows.append(window_handling.TronWindow(camera_id, **kwargs))
+
+        return context.main_context.windows[-1]
 
     def new_camera(self):
         context.main_context.cameras.append(camera_handling.TronCamera())

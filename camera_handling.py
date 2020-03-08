@@ -4,7 +4,7 @@ import math
 
 import context
 import keyboard_handling
-
+import mouse_handling
 
 class TronCamera:
     def __init__(self):
@@ -19,10 +19,6 @@ class TronCamera:
         self.movement_speed = 0.1
         self.yaw = 0.0
         self.pitch = 0.0
-
-        self.first_mouse = True
-        self.lastX = None
-        self.lastY = None
 
         self.camera_projection_matrix = None
         self.camera_view_matrix = None
@@ -44,9 +40,9 @@ class TronCamera:
         if keyboard_handling.keys[glfw.KEY_C]:
             self.camera_pos -= self.camera_up * self.movement_speed
 
-    def turn_camera(self, offset_x, offset_y):
-        offset_x *= self.mouse_sensitivity
-        offset_y *= self.mouse_sensitivity
+    def process_camera(self):
+        offset_x = mouse_handling.offset_x * self.mouse_sensitivity
+        offset_y = mouse_handling.offset_y * self.mouse_sensitivity
 
         self.yaw += offset_x
         self.pitch += offset_y
@@ -67,17 +63,3 @@ class TronCamera:
         self.camera_front = pyrr.vector.normalise(front)
         self.camera_right = pyrr.vector.normalise(pyrr.vector3.cross(self.camera_front, pyrr.Vector3([0.0, 1.0, 0.0])))
         self.camera_up = pyrr.vector.normalise(pyrr.vector3.cross(self.camera_right, self.camera_front))
-
-    def mouse_callback(self, window, xpos, ypos):
-        if self.first_mouse:
-            self.lastX = xpos
-            self.lastY = ypos
-            self.first_mouse = False
-
-        offset_x = xpos - self.lastX
-        offset_y = self.lastY - ypos
-
-        self.lastX = xpos
-        self.lastY = ypos
-
-        self.turn_camera(offset_x, offset_y)

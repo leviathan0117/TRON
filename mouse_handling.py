@@ -1,13 +1,22 @@
 import glfw
 
-keys = [False] * 1024
+curX = -1
+curY = -1
+offset_x = 0
+offset_y = 0
 
-def key_callback(window, key, scan_code, action, mode):
-    if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
-        glfw.set_window_should_close(window, True)
+def mouse_callback(window, xpos, ypos):
+    global curX, curY, offset_x, offset_y
 
-    if 0 <= key < 1024:
-        if action == glfw.PRESS:
-            keys[key] = True
-        elif action == glfw.RELEASE:
-            keys[key] = False
+    if curY != -1:
+        offset_x = xpos - curX
+        offset_y = curY - ypos
+
+    curX = xpos
+    curY = ypos
+
+def drop_state():
+    global offset_x, offset_y
+
+    offset_x = 0
+    offset_y = 0
