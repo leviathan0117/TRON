@@ -11,6 +11,8 @@ Source code for a legacy OpenGL-based version (current v0.1.0): https://github.c
 * PCF (Percentage closer filtering) Shadows (better gradient)
 * New fixes, new bugs =)
 * Structure optimisation (rotations are now applied to a subobject as a whole, not to it's parts individually)
+* Code split to files
+* FPS imporvements
  
 
 
