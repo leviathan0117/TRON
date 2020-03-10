@@ -113,6 +113,7 @@ class TronObject:
                     context.main_context.textures[context.main_context.materials[j.material_id].texture_id].bind()
 
                     glBindVertexArray(j.vao)
+                    # TODO: do we need this as part buffers, or we can make them subobject buffers?
                     j.update_buffers()
                     self.describe_buffers()
                     self.update_buffers()

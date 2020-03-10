@@ -73,8 +73,9 @@ class TronPart:
 
     def fill_buffers(self):
         glBindVertexArray(self.vao)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self.points_vbo)
         if context.main_context.materials[self.material_id].texture_id is not None:
-            glBindBuffer(GL_ARRAY_BUFFER, self.points_vbo)
             glBufferData(GL_ARRAY_BUFFER,
                          self.points.itemsize * len(self.points),
                          self.points, GL_STATIC_DRAW)
@@ -91,7 +92,6 @@ class TronPart:
                                   ctypes.c_void_p((3 + 2) * 4))
             glEnableVertexAttribArray(2)
         else:
-            glBindBuffer(GL_ARRAY_BUFFER, self.points_vbo)
             glBufferData(GL_ARRAY_BUFFER,
                          self.points.itemsize * len(self.points),
                          self.points, GL_STATIC_DRAW)
@@ -150,6 +150,7 @@ class TronPart:
 
 class TronSubobject:
     def __init__(self):
+
         self.delta_position = [0.0, 0.0, 0.0]
         self.delta_rotation = [0.0, 0.0, 0.0]
         self.delta_size = 1.0

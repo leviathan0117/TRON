@@ -153,7 +153,7 @@ class TronFileHandler:
                             tmp_texture_coordinates[int(indexes[1]) - 1])
                         current_object.subobjects[-1].parts[-1].points.extend(
                             tmp_normal_coordinates[int(indexes[2]) - 1])
-                # This is when we don't need vertices
+                # This is when we don't need textures
                 else:
                     color = [current_material.kd[0], current_material.kd[1], current_material.kd[2], current_material.d]
                     indexes = data[1].split("/")
