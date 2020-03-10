@@ -1,7 +1,7 @@
 from OpenGL.GL import *
 import numpy
 import context
-
+import shader_handling
 
 class TronObject:
     def __init__(self, structure_id):
@@ -167,4 +167,29 @@ class TronObject:
         self.rotation_array = rotation_array
         self.instance_array = instance_array
         self.resize_array = resize_array
+
+class TronObject2D:
+    def __init__(self, structure_id):
+        self.hided = 0
+        self.position = None
+        self.structure = None
+        self.structure_id = structure_id
+
+        context.main_context.objects2D.append(self)
+
+    def draw(self):
+        struct = context.main_context.structures2D[self.structure_id]
+
+        context.main_context.shader_common_2d.bind()
+
+        #glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, None)
+
+        for i in struct.subobjects:
+            for j in i.parts:
+
+                glBindVertexArray(j.vao)
+
+                count_objects = 1
+                glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
+
 

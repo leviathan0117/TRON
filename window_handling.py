@@ -115,10 +115,13 @@ class TronWindow:
                 context.main_context.num_active_lights += 1
         glCullFace(GL_BACK)
 
+        # TODO: make this a debug mode switch =)
         if 1:
             glViewport(0, 0, self.window_width, self.window_height)
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+            for i in context.main_context.objects2D:
+                i.draw()
             for i in context.main_context.objects:
                 if i.hided == 0:
                     i.real_draw()

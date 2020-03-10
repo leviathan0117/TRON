@@ -159,3 +159,43 @@ class TronStructure:
         self.id = len(context.main_context.structures)
 
         self.subobjects = []
+
+class TronStructure2D:
+    def __init__(self):
+        self.id = len(context.main_context.structures2D)
+
+        self.subobjects = []
+
+class TronSubobject2D:
+    def __init__(self):
+        self.parts = []
+        self.name = None
+        self.count_parts = 0
+
+class TronPart2D:
+    def __init__(self):
+        self.texture_id = None
+        self.points = []
+
+        self.vao = glGenVertexArrays(1)
+        self.points_vbo = glGenBuffers(1)
+
+    def fill_buffers(self):
+        glBindVertexArray(self.vao)
+        glBindBuffer(GL_ARRAY_BUFFER, self.points_vbo)
+
+        if self.texture_id is not None:
+            # TODO: fill this part
+            pass
+        else:
+            glBufferData(GL_ARRAY_BUFFER,
+                         self.points.itemsize * len(self.points),
+                         self.points, GL_STATIC_DRAW)
+            # position - 0
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, self.points.itemsize * 6,
+                                  ctypes.c_void_p(0))
+            glEnableVertexAttribArray(0)
+            # color - 1
+            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, self.points.itemsize * 6,
+                                  ctypes.c_void_p(2 * 4))
+            glEnableVertexAttribArray(1)

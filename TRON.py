@@ -13,11 +13,13 @@ import keyboard_handling
 import camera_handling
 import window_handling
 import mouse_handling
+import primitives_creation
 
 from file_handling import TronFileHandler
-from object_handling import TronObject
+from object_handling import TronObject, TronObject2D
 from context import main_context
 from light_handling import TronDirectionalLight
+from primitives_creation import *
 
 
 class TronProgram:
