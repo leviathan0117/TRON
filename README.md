@@ -1,4 +1,4 @@
-# TRON (v0.0.5-code structure update)
+# TRON (v0.0.6-functionality update)
 A simple Python 3D graphics library based on OpenGL. Created to allow easier development of small Python 3D programs. 
 
 Source code available at: https://github.com/leviathan117/TRON
@@ -6,10 +6,13 @@ Source code available at: https://github.com/leviathan117/TRON
 Source code for a legacy OpenGL-based version (current v0.1.0): https://github.com/leviathan117/TRON_Legacy
 
 ## What's new (from previous version):
-* F@CKING WINDOWS OS SUPPORT!!!!! (seems like it)
-* Moving/rotating/resizing specific parts of an object is now possible
-* Significant code refactoring
-* (unfortunately) lost some of previous functionality 
+* Further code style improvements
+* Multiple cameras support
+* PCF (Percentage closer filtering) Shadows (better gradient)
+* New fixes, new bugs =)
+* Structure optimisation (rotations are now applied to a subobject as a whole, not to it's parts individually)
+ 
+
 
 ## Version warning
 Until version 1.0.0 - code structure, names and function implementations may change chaotically. Documentation may not be present.
