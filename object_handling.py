@@ -66,13 +66,14 @@ class TronObject:
     def shade_draw(self):
         struct = context.main_context.structures[self.structure_id]
 
+        self.update_buffers()
         for i in struct.subobjects:
+            i.update_buffers()
             for j in i.parts:
                 if context.main_context.materials[j.material_id].texture_id is not None:
                     glBindVertexArray(j.vao)
-                    j.update_buffers()
+                    i.describe_buffers()
                     self.describe_buffers()
-                    self.update_buffers()
                     count_objects = 1
                     glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
 
@@ -105,7 +106,9 @@ class TronObject:
 
         struct = context.main_context.structures[self.structure_id]
 
+        self.update_buffers()
         for i in struct.subobjects:
+            i.update_buffers()
             for j in i.parts:
                 if context.main_context.materials[j.material_id].texture_id is not None:
                     context.main_context.shader_texture.bind()
@@ -114,9 +117,8 @@ class TronObject:
 
                     glBindVertexArray(j.vao)
                     # TODO: do we need this as part buffers, or we can make them subobject buffers?
-                    j.update_buffers()
+                    i.describe_buffers()
                     self.describe_buffers()
-                    self.update_buffers()
 
                     count_objects = 1
                     glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)
@@ -147,14 +149,16 @@ class TronObject:
         glUniformMatrix4fv(context.main_context.shader_common.view_uniform_location, 1, GL_FALSE, cam.camera_view_matrix)
         glUniformMatrix4fv(context.main_context.shader_common.projection_uniform_location, 1, GL_FALSE,
                            cam.camera_projection_matrix)
+
+        self.update_buffers()
         for i in struct.subobjects:
+            i.update_buffers()
             for j in i.parts:
                 if context.main_context.materials[j.material_id].texture_id is None:
                     context.main_context.shader_common.bind()
                     glBindVertexArray(j.vao)
-                    j.update_buffers()
+                    i.describe_buffers()
                     self.describe_buffers()
-                    self.update_buffers()
 
                     count_objects = 1
                     glDrawArraysInstanced(GL_TRIANGLES, 0, len(j.points), count_objects)

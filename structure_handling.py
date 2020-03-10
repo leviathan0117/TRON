@@ -59,17 +59,6 @@ class TronPart:
 
         self.vao = glGenVertexArrays(1)
         self.points_vbo = glGenBuffers(1)
-        self.instance_vbo = glGenBuffers(1)
-        self.rotation_vbo = glGenBuffers(1)
-        self.resize_vbo = glGenBuffers(1)
-
-        self.rotation_array = numpy.array([0, 0, 0], numpy.float32)
-        self.instance_array = numpy.array([0, 0, 0], numpy.float32)
-        self.resize_array = numpy.array([1], numpy.float32)
-
-        self.rotation_array_previous = numpy.array([0, 0, 0], numpy.float32)
-        self.instance_array_previous = numpy.array([0, 0, 0], numpy.float32)
-        self.resize_array_previous = numpy.array([0], numpy.float32)
 
     def fill_buffers(self):
         glBindVertexArray(self.vao)
@@ -108,6 +97,26 @@ class TronPart:
                                   ctypes.c_void_p((3 + 4) * 4))
             glEnableVertexAttribArray(2)
 
+
+class TronSubobject:
+    def __init__(self):
+        self.parts = []
+        self.name = None
+        self.count_parts = 0
+
+        self.instance_vbo = glGenBuffers(1)
+        self.rotation_vbo = glGenBuffers(1)
+        self.resize_vbo = glGenBuffers(1)
+
+        self.rotation_array = numpy.array([0, 0, 0], numpy.float32)
+        self.instance_array = numpy.array([0, 0, 0], numpy.float32)
+        self.resize_array = numpy.array([1], numpy.float32)
+
+        self.rotation_array_previous = numpy.array([0, 0, 0], numpy.float32)
+        self.instance_array_previous = numpy.array([0, 0, 0], numpy.float32)
+        self.resize_array_previous = numpy.array([0], numpy.float32)
+
+    def describe_buffers(self):
         glBindBuffer(GL_ARRAY_BUFFER, self.instance_vbo)
         # instance - 3
         glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(0))
@@ -126,10 +135,7 @@ class TronPart:
         glEnableVertexAttribArray(5)
         glVertexAttribDivisor(5, 1)
 
-        self.update_buffers()
-
     def update_buffers(self):
-        glBindVertexArray(self.vao)
         if not numpy.array_equal(self.rotation_array, self.rotation_array_previous) or \
                 not numpy.array_equal(self.instance_array, self.instance_array_previous) or \
                 not numpy.array_equal(self.resize_array, self.resize_array_previous):
@@ -146,17 +152,6 @@ class TronPart:
             self.rotation_array_previous = self.rotation_array
             self.instance_array_previous = self.instance_array
             self.resize_array_previous = self.resize_array
-
-
-class TronSubobject:
-    def __init__(self):
-
-        self.delta_position = [0.0, 0.0, 0.0]
-        self.delta_rotation = [0.0, 0.0, 0.0]
-        self.delta_size = 1.0
-        self.parts = []
-        self.name = None
-        self.count_parts = 0
 
 
 class TronStructure:
